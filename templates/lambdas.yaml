@@ -1,0 +1,133 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'Template for automated service lambdas'
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 3
+    MemorySize: 128
+    Handler: app.lambda_handler
+    Architectures:
+    - x86_64
+    LoggingConfig:
+      LogFormat: JSON
+Parameters:
+  bucketName:
+    Type: String
+    Description: The name of the S3 BucketName
+  environment:
+    Type: String
+    Description: The environment name
+  app:
+    Type: String
+    Description: App name used for tagging
+  ssmprefix:
+    Type: String
+    Description: Prefix used in various names
+Resources:
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName:
+        Fn::Sub: ${ssmprefix}-lambda-execution-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+      Policies:
+      - PolicyName:
+          Fn::Sub: ${ssmprefix}-lambda-execution-policy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Action:
+            - ssm:GetParameter
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ssmprefix}/clientid
+          - Action:
+            - ssm:GetParameter
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ssmprefix}/clientsecret
+          - Action:
+            - ssm:GetParameter
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ssmprefix}/emailpass
+          - Action:
+            - ssm:GetParameter
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ssmprefix}/emailuser
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /
+    Metadata:
+      SamResourceId: LambdaRole
+  DependancyLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName:
+        Fn::Sub: ${ssmprefix}-lambda-dependencies
+      Description:
+        Fn::Sub: Dependencies for the ${ssmprefix} lambda functions
+      ContentUri:
+        Bucket: { Ref: bucketName }
+        Key: lambdas/dependencies
+      CompatibleRuntimes:
+      - python3.12
+      RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: python3.12
+      SamResourceId: DependancyLayer
+  ConnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri:
+        Bucket: { Ref: bucketName }
+        Key: lambdas/connectfunction
+      Layers:
+      - Ref: DependancyLayer
+      Timeout: 30
+      Environment:
+        Variables:
+          TZ: Europe/London
+          ssm_prefix:
+            Ref: ssmprefix
+      Role:
+        Fn::GetAtt:
+        - LambdaRole
+        - Arn
+    Metadata:
+      SamResourceId: ConnectFunction
+  CheckFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri:
+        Bucket: { Ref: bucketName }
+        Key: lambdas/checkfunction
+      Layers:
+      - Ref: DependancyLayer
+      Timeout: 30
+      Environment:
+        Variables:
+          TZ: Europe/London
+          ssm_prefix:
+            Ref: ssmprefix
+      Role:
+        Fn::GetAtt:
+        - LambdaRole
+        - Arn
+      Events:
+        InvocationLevel:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0/15 8-20 ? * MON-FRI *)
+    Metadata:
+      SamResourceId: CheckFunction
