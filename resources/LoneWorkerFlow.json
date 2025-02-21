@@ -1,0 +1,508 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "1adeee6f-e71b-4085-97ed-01ae6b1f135d",
+  "Metadata": {
+    "entryPointPosition": {
+      "x": 272,
+      "y": 10.4
+    },
+    "ActionMetadata": {
+      "0cc90eb7-e04d-4d06-be08-8fe726c60bfb": {
+        "position": {
+          "x": 1679.2,
+          "y": 449.6
+        }
+      },
+      "Check In or Out": {
+        "position": {
+          "x": 1696,
+          "y": 170.4
+        },
+        "isFriendlyName": true,
+        "parameters": {
+          "Text": {
+            "useDynamic": true
+          }
+        },
+        "useDynamic": true
+      },
+      "c2f33247-9cc5-4dc1-a66b-0f15378908db": {
+        "position": {
+          "x": 480.8,
+          "y": 476
+        },
+        "parameters": {
+          "Attributes": {
+            "idnumber": {
+              "useDynamic": true
+            }
+          }
+        },
+        "dynamicParams": [
+          "idnumber"
+        ]
+      },
+      "Get ID Number": {
+        "position": {
+          "x": 730.4,
+          "y": 1.6
+        },
+        "isFriendlyName": true,
+        "conditionMetadata": [],
+        "countryCodePrefix": "+1"
+      },
+      "1adeee6f-e71b-4085-97ed-01ae6b1f135d": {
+        "position": {
+          "x": 464.8,
+          "y": 9.6
+        },
+        "overrideConsoleVoice": false
+      },
+      "Check Out Lambda": {
+        "position": {
+          "x": 1135.2,
+          "y": 216
+        },
+        "isFriendlyName": true,
+        "parameters": {
+          "LambdaFunctionARN": {
+            "displayName": "ConnectFunction"
+          }
+        },
+        "dynamicMetadata": {
+          "buttonpressed": false
+        }
+      },
+      "1501cd57-8283-48e0-a4aa-1789a11c4c75": {
+        "position": {
+          "x": 1430.4,
+          "y": 176
+        },
+        "parameters": {
+          "Attributes": {
+            "message": {
+              "useDynamic": true
+            }
+          }
+        },
+        "dynamicParams": [
+          "message"
+        ]
+      },
+      "Error contact office": {
+        "position": {
+          "x": 1703.2,
+          "y": -48
+        },
+        "isFriendlyName": true
+      },
+      "Check In Lambda": {
+        "position": {
+          "x": 1130.4,
+          "y": -7.2
+        },
+        "isFriendlyName": true,
+        "parameters": {
+          "LambdaFunctionARN": {
+            "displayName": "ConnectFunction"
+          }
+        },
+        "dynamicMetadata": {
+          "buttonpressed": false
+        }
+      },
+      "SOS Line": {
+        "position": {
+          "x": 1387.2,
+          "y": 444.8
+        },
+        "isFriendlyName": true
+      },
+      "SOS Lambda": {
+        "position": {
+          "x": 1137.6,
+          "y": 424
+        },
+        "isFriendlyName": true,
+        "parameters": {
+          "LambdaFunctionARN": {
+            "displayName": "ConnectFunction"
+          }
+        },
+        "dynamicMetadata": {
+          "buttonpressed": false
+        }
+      },
+      "83b76e76-52cc-4732-81ff-1519b0c0f132": {
+        "position": {
+          "x": 1973.6,
+          "y": 283.2
+        }
+      },
+      "e3cb4d57-622c-4298-84c0-7d26f9928bb8": {
+        "position": {
+          "x": 484,
+          "y": 229.6
+        },
+        "conditions": [],
+        "conditionMetadata": [
+          {
+            "id": "d81ac798-e000-4bbb-9156-668999e32add",
+            "operator": {
+              "name": "Equals",
+              "value": "Equals",
+              "shortDisplay": "="
+            },
+            "value": "Timeout"
+          }
+        ]
+      },
+      "98a70ec0-069b-44a4-ada6-2a1810b1c675": {
+        "position": {
+          "x": 862.4,
+          "y": 255.2
+        },
+        "conditionMetadata": [
+          {
+            "id": "5f887b1e-65b2-490e-bef1-0c47b12c7f61",
+            "value": "1"
+          },
+          {
+            "id": "0abe7e28-95dc-45ac-ac70-6701ed7887ac",
+            "value": "2"
+          },
+          {
+            "id": "6df724ea-b665-4ddf-a28b-509e8962a313",
+            "value": "3"
+          }
+        ]
+      },
+      "7ad47af7-ce5c-42f4-ac3a-2aef456a3dd8": {
+        "position": {
+          "x": 1130.4,
+          "y": 632
+        }
+      }
+    },
+    "Annotations": [],
+    "name": "loneworker flow",
+    "description": "",
+    "type": "contactFlow",
+    "status": "PUBLISHED",
+    "hash": {}
+  },
+  "Actions": [
+    {
+      "Parameters": {
+        "Text": "There is no one available to take your call but a message has been left for Veronica to arrange a call back.\n\nThank You"
+      },
+      "Identifier": "0cc90eb7-e04d-4d06-be08-8fe726c60bfb",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "83b76e76-52cc-4732-81ff-1519b0c0f132",
+        "Errors": [
+          {
+            "NextAction": "83b76e76-52cc-4732-81ff-1519b0c0f132",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "Text": "$.Attributes.message"
+      },
+      "Identifier": "Check In or Out",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "83b76e76-52cc-4732-81ff-1519b0c0f132",
+        "Errors": [
+          {
+            "NextAction": "83b76e76-52cc-4732-81ff-1519b0c0f132",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "Attributes": {
+          "idnumber": "$.StoredCustomerInput"
+        },
+        "TargetContact": "Current"
+      },
+      "Identifier": "c2f33247-9cc5-4dc1-a66b-0f15378908db",
+      "Type": "UpdateContactAttributes",
+      "Transitions": {
+        "NextAction": "98a70ec0-069b-44a4-ada6-2a1810b1c675",
+        "Errors": [
+          {
+            "NextAction": "98a70ec0-069b-44a4-ada6-2a1810b1c675",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "StoreInput": "True",
+        "InputTimeLimitSeconds": "10",
+        "Text": "Welcome to Seescape. \n\nPlease enter your ID number followed by a hash",
+        "DTMFConfiguration": {
+          "DisableCancelKey": "False",
+          "InputTerminationSequence": "#"
+        },
+        "InputValidation": {
+          "CustomValidation": {
+            "MaximumLength": "5"
+          }
+        }
+      },
+      "Identifier": "Get ID Number",
+      "Type": "GetParticipantInput",
+      "Transitions": {
+        "NextAction": "e3cb4d57-622c-4298-84c0-7d26f9928bb8",
+        "Errors": [
+          {
+            "NextAction": "e3cb4d57-622c-4298-84c0-7d26f9928bb8",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "TextToSpeechVoice": "Emma"
+      },
+      "Identifier": "1adeee6f-e71b-4085-97ed-01ae6b1f135d",
+      "Type": "UpdateContactTextToSpeechVoice",
+      "Transitions": {
+        "NextAction": "Get ID Number"
+      }
+    },
+    {
+      "Parameters": {
+        "LambdaFunctionARN": "LAMBDA_ARN",
+        "InvocationTimeLimitSeconds": "8",
+        "LambdaInvocationAttributes": {
+          "buttonpressed": "2"
+        },
+        "ResponseValidation": {
+          "ResponseType": "STRING_MAP"
+        }
+      },
+      "Identifier": "Check Out Lambda",
+      "Type": "InvokeLambdaFunction",
+      "Transitions": {
+        "NextAction": "1501cd57-8283-48e0-a4aa-1789a11c4c75",
+        "Errors": [
+          {
+            "NextAction": "Error contact office",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "Attributes": {
+          "message": "$.External.message"
+        },
+        "TargetContact": "Current"
+      },
+      "Identifier": "1501cd57-8283-48e0-a4aa-1789a11c4c75",
+      "Type": "UpdateContactAttributes",
+      "Transitions": {
+        "NextAction": "Check In or Out",
+        "Errors": [
+          {
+            "NextAction": "Error contact office",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "Text": "An error has occurred, please contact the office."
+      },
+      "Identifier": "Error contact office",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "83b76e76-52cc-4732-81ff-1519b0c0f132",
+        "Errors": [
+          {
+            "NextAction": "83b76e76-52cc-4732-81ff-1519b0c0f132",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "LambdaFunctionARN": "LAMBDA_ARN",
+        "InvocationTimeLimitSeconds": "8",
+        "LambdaInvocationAttributes": {
+          "buttonpressed": "1"
+        },
+        "ResponseValidation": {
+          "ResponseType": "STRING_MAP"
+        }
+      },
+      "Identifier": "Check In Lambda",
+      "Type": "InvokeLambdaFunction",
+      "Transitions": {
+        "NextAction": "1501cd57-8283-48e0-a4aa-1789a11c4c75",
+        "Errors": [
+          {
+            "NextAction": "Error contact office",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "Text": "Transferring your call to the office.\n\nPlease wait."
+      },
+      "Identifier": "SOS Line",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "0cc90eb7-e04d-4d06-be08-8fe726c60bfb",
+        "Errors": [
+          {
+            "NextAction": "0cc90eb7-e04d-4d06-be08-8fe726c60bfb",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "LambdaFunctionARN": "LAMBDA_ARN",
+        "InvocationTimeLimitSeconds": "5",
+        "LambdaInvocationAttributes": {
+          "buttonpressed": "3"
+        },
+        "ResponseValidation": {
+          "ResponseType": "STRING_MAP"
+        }
+      },
+      "Identifier": "SOS Lambda",
+      "Type": "InvokeLambdaFunction",
+      "Transitions": {
+        "NextAction": "SOS Line",
+        "Errors": [
+          {
+            "NextAction": "SOS Line",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {},
+      "Identifier": "83b76e76-52cc-4732-81ff-1519b0c0f132",
+      "Type": "DisconnectParticipant",
+      "Transitions": {}
+    },
+    {
+      "Parameters": {
+        "ComparisonValue": "$.StoredCustomerInput"
+      },
+      "Identifier": "e3cb4d57-622c-4298-84c0-7d26f9928bb8",
+      "Type": "Compare",
+      "Transitions": {
+        "NextAction": "c2f33247-9cc5-4dc1-a66b-0f15378908db",
+        "Conditions": [
+          {
+            "NextAction": "7ad47af7-ce5c-42f4-ac3a-2aef456a3dd8",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "Timeout"
+              ]
+            }
+          }
+        ],
+        "Errors": [
+          {
+            "NextAction": "c2f33247-9cc5-4dc1-a66b-0f15378908db",
+            "ErrorType": "NoMatchingCondition"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "Text": "Your ID Number is $.Attributes.idnumber\n\nPress 1 to check into an appointment.\n2 to ckeck out of an appointment. \n3 to be transferred to the office. \n",
+        "StoreInput": "False",
+        "InputTimeLimitSeconds": "15"
+      },
+      "Identifier": "98a70ec0-069b-44a4-ada6-2a1810b1c675",
+      "Type": "GetParticipantInput",
+      "Transitions": {
+        "NextAction": "7ad47af7-ce5c-42f4-ac3a-2aef456a3dd8",
+        "Conditions": [
+          {
+            "NextAction": "Check In Lambda",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "1"
+              ]
+            }
+          },
+          {
+            "NextAction": "Check Out Lambda",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "2"
+              ]
+            }
+          },
+          {
+            "NextAction": "SOS Lambda",
+            "Condition": {
+              "Operator": "Equals",
+              "Operands": [
+                "3"
+              ]
+            }
+          }
+        ],
+        "Errors": [
+          {
+            "NextAction": "7ad47af7-ce5c-42f4-ac3a-2aef456a3dd8",
+            "ErrorType": "InputTimeLimitExceeded"
+          },
+          {
+            "NextAction": "7ad47af7-ce5c-42f4-ac3a-2aef456a3dd8",
+            "ErrorType": "NoMatchingCondition"
+          },
+          {
+            "NextAction": "7ad47af7-ce5c-42f4-ac3a-2aef456a3dd8",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    },
+    {
+      "Parameters": {
+        "Text": "You did not select an option in time.\n\nThank you for your call."
+      },
+      "Identifier": "7ad47af7-ce5c-42f4-ac3a-2aef456a3dd8",
+      "Type": "MessageParticipant",
+      "Transitions": {
+        "NextAction": "83b76e76-52cc-4732-81ff-1519b0c0f132",
+        "Errors": [
+          {
+            "NextAction": "83b76e76-52cc-4732-81ff-1519b0c0f132",
+            "ErrorType": "NoMatchingError"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -46,17 +46,13 @@
 bash scripts/initial.sh
 ~~~
 
-- Build and push the code.
-
-    *This reports a spurious error - ignore it until fixed.*
+- Build and push the code. *This reports that it is ignoring some lambdas that do not exist yet - this is benign at this point.*
 
 ~~~bash
 bash scripts/lambdas.sh
 ~~~
 
 - Deploy the lambdas using code formation. This deploys the lambdas and also various IAM configuration.
-
-    *This is separate from initial.sh for no good reason; should combine them in due course.*
 
 ~~~bash
 bash scripts/lambdas.sh
@@ -78,17 +74,19 @@ Update the secrets to have the correct values as follows.
 
 ### Configure Amazon Connect
 
-*AWS Connect is deployed at this point, but needs configuration.*
+This is largely done by script.
 
-Needs at the very least 
+~~~bash
+bash scripts/lambdas.sh
+~~~
 
-- add a number
+Once you have done that you must manually do the following in the AWS Connect GUI.
 
-- add the relevant flow, including lambdas etc.
+- Claim a phone number.
 
-- set up routing
+- Associate the phone number with the loneworker flow.
 
-- configure prompts
+*This is a bit manual right now; probably best to leave it manual.*
 
 ## Validation
 

@@ -91,6 +91,7 @@ Resources:
   ConnectFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: ConnectFunction
       CodeUri:
         Bucket: { Ref: bucketName }
         Key: lambdas/connectfunction
@@ -111,6 +112,7 @@ Resources:
   CheckFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: CheckFunction
       CodeUri:
         Bucket: { Ref: bucketName }
         Key: lambdas/checkfunction

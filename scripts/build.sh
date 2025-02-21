@@ -58,11 +58,17 @@ do
     aws s3 cp build/${TARGET}.zip s3://${BUCKET_NAME}/lambdas/${TARGET}
 done
 
-for TARGET in connectfunction checkfunction
+# This has a different capitalisation
+for TARGET in ConnectFunction CheckFunction
 do
-    echo "Forcing each lambda to the new version"
-    aws lambda update-function-code \
-        --function-name ${TARGET} \
-        --s3-bucket ${BUCKET_NAME} \
-        --s3-key lambdas/${TARGET}
+    if ! aws lambda get-function --function-name ${TARGET} > /dev/null 2>&1
+    then
+        echo "Function ${TARGET} does not exist; ignoring"
+    else
+        echo "Forcing ${TARGET} to the new version"
+        aws lambda update-function-code \
+            --function-name ${TARGET} \
+            --s3-bucket ${BUCKET_NAME} \
+            --s3-key lambdas/${TARGET}
+    fi
 done
