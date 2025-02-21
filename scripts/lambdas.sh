@@ -7,7 +7,7 @@ echo "App: ${APP}"
 # This script must run from the parent directory of the scripts directory
 cd "$(dirname "$0")/.."
 
-STACK_NAME="loneworker-lambdas"
+STACK_NAME="${APP}-lambdas"
 
 if ! aws cloudformation describe-stacks --stack-name ${STACK_NAME} > /dev/null 2>&1
 then

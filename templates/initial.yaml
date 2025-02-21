@@ -11,9 +11,6 @@ Parameters:
   app:
     Type: String
     Description: App name used for tagging
-  ssmprefix:
-    Type: String
-    Description: Prefix used in various names
 
 Resources:
   S3Bucket:

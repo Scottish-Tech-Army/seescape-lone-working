@@ -20,16 +20,13 @@ Parameters:
     Description: The environment name
   app:
     Type: String
-    Description: App name used for tagging
-  ssmprefix:
-    Type: String
-    Description: Prefix used in various names
+    Description: App name used for tagging and naming
 Resources:
   LambdaRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName:
-        Fn::Sub: ${ssmprefix}-lambda-execution-role
+        Fn::Sub: ${app}-lambda-execution-role
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -41,7 +38,7 @@ Resources:
             - lambda.amazonaws.com
       Policies:
       - PolicyName:
-          Fn::Sub: ${ssmprefix}-lambda-execution-policy
+          Fn::Sub: ${app}-lambda-execution-policy
         PolicyDocument:
           Version: '2012-10-17'
           Statement:
@@ -49,22 +46,27 @@ Resources:
             - ssm:GetParameter
             Effect: Allow
             Resource:
-              Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ssmprefix}/clientid
+              Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${app}/tenant
           - Action:
             - ssm:GetParameter
             Effect: Allow
             Resource:
-              Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ssmprefix}/clientsecret
+              Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${app}/clientid
           - Action:
             - ssm:GetParameter
             Effect: Allow
             Resource:
-              Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ssmprefix}/emailpass
+              Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${app}/clientsecret
           - Action:
             - ssm:GetParameter
             Effect: Allow
             Resource:
-              Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ssmprefix}/emailuser
+              Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${app}/emailpass
+          - Action:
+            - ssm:GetParameter
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${app}/emailuser
       ManagedPolicyArns:
       - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Path: /
@@ -74,9 +76,9 @@ Resources:
     Type: AWS::Serverless::LayerVersion
     Properties:
       LayerName:
-        Fn::Sub: ${ssmprefix}-lambda-dependencies
+        Fn::Sub: ${app}-lambda-dependencies
       Description:
-        Fn::Sub: Dependencies for the ${ssmprefix} lambda functions
+        Fn::Sub: Dependencies for the ${app} lambda functions
       ContentUri:
         Bucket: { Ref: bucketName }
         Key: lambdas/dependencies
@@ -99,7 +101,7 @@ Resources:
         Variables:
           TZ: Europe/London
           ssm_prefix:
-            Ref: ssmprefix
+            Ref: app
       Role:
         Fn::GetAtt:
         - LambdaRole
@@ -119,7 +121,7 @@ Resources:
         Variables:
           TZ: Europe/London
           ssm_prefix:
-            Ref: ssmprefix
+            Ref: app
       Role:
         Fn::GetAtt:
         - LambdaRole

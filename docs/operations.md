@@ -24,9 +24,17 @@
 
 ## Initial creation only
 
+### Run scripts to deploy resources
+
 - Go to the root directory of the repository
 
-- Load the config for the environment, and run the script `initial.sh`, which deploys various initial resources.
+- Source the config for the environment. All scripts in this section assume that this has been done.
+
+~~~bash
+. config/whatever_env.sh
+~~~
+
+- Run the script `initial.sh`, which deploys various initial resources.
 
     - The configuration parameters for credentials.
 
@@ -35,39 +43,40 @@
     - The Amazon Connect instance itself.
 
 ~~~bash
-. config/whatever_env.sh
-bash initial.sh
+bash scripts/initial.sh
 ~~~
 
-- Update the secrets to have the correct values.
+- Build and push the code.
 
-    - *xxx describe that here - deliberately not automated for better security*
+    *This reports a spurious error - ignore it until fixed.*
 
-## Deploy lambdas
-
-*This is separate from initial.sh for no good reason; should combine them in due course.*
+~~~bash
+bash scripts/lambdas.sh
+~~~
 
 - Deploy the lambdas using code formation. This deploys the lambdas and also various IAM configuration.
 
-~~~bash
-. config/whatever_env.sh
-bash lambdas.sh
-~~~
-
-## Build lambdas
-
-This can be done multiple times for new code releases
-
-- Build and deploy the lambda code to S3
-
-    *This is a little poor, in that there are undocumented parameters in that script. The name is also somewhat misleading, as it deploys as well as builds.*
+    *This is separate from initial.sh for no good reason; should combine them in due course.*
 
 ~~~bash
-. config/whatever_env.sh
-bash build.sh
+bash scripts/lambdas.sh
 ~~~
 
-## Configure Amazon Connect
+### Update secrets
+
+*This process could be automated but is not for security reasons; we do not want passwords or IDs in config files.*
+
+Update the secrets to have the correct values as follows.
+
+- Go to the AWS console in a web browser.
+
+- Find the "AWS Systems Manager/Parameter Store" - this can be found by entering `Parameter Store` in the search box.
+
+- For each of the five parameters, enter the correct value.
+
+    *Details of values and parameters to be provided.*
+
+### Configure Amazon Connect
 
 *AWS Connect is deployed at this point, but needs configuration.*
 
@@ -87,9 +96,7 @@ Needs at the very least
 
 # Upgrading to new version of code
 
-*Going to amount to redeploying the lambdas after changing the code, as per above.*
-
-*Something about how to upgrade / reconfigure Amazon Connect too*
+*In principle just running build.sh, but the script needs cleaning up.*
 
 # Other operational processes
 

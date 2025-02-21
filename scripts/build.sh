@@ -66,7 +66,3 @@ do
         --s3-bucket ${BUCKET_NAME} \
         --s3-key lambdas/${TARGET}
 done
-
-
-
-
