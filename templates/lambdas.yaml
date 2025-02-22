@@ -6,7 +6,6 @@ Globals:
     Runtime: python3.12
     Timeout: 3
     MemorySize: 128
-    Handler: app.lambda_handler
     Architectures:
     - x86_64
     LoggingConfig:
@@ -92,9 +91,10 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: ConnectFunction
+      Handler: connect.lambda_handler
       CodeUri:
         Bucket: { Ref: bucketName }
-        Key: lambdas/connectfunction
+        Key: lambdas/ConnectFunction
       Layers:
       - Ref: DependancyLayer
       Timeout: 30
@@ -113,9 +113,10 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: CheckFunction
+      Handler: check.lambda_handler
       CodeUri:
         Bucket: { Ref: bucketName }
-        Key: lambdas/checkfunction
+        Key: lambdas/CheckFunction
       Layers:
       - Ref: DependancyLayer
       Timeout: 30

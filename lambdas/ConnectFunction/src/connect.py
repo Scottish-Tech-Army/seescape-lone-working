@@ -11,7 +11,7 @@ def getauthcode(variables):
     """ Get Authentication Code for MS Graph Calls"""
 
     # Set the authentication endpoint
-    auth_endpoint = 'https://login.microsoftonline.com/f682babc-fbf5-4641-9219-06a580fa59bd/oauth2/v2.0/token'
+    auth_endpoint = 'https://login.microsoftonline.com/' + variables['tenant'] + '/oauth2/v2.0/token'
 
     # Create the payload for the token request
     payload = {  
@@ -159,10 +159,11 @@ def lambda_handler(event, context):
     ssm_prefix = os.environ['ssm_prefix']
     ssm = boto3.client('ssm')
     variables = {}
-    variables['client_id'] = ssm.get_parameter(Name='/'+ssm_prefix+'/clientid')['Parameter']['Value']
-    variables['client_secret'] = ssm.get_parameter(Name='/'+ssm_prefix+'/clientsecret')['Parameter']['Value']
-    variables['username'] = ssm.get_parameter(Name='/'+ssm_prefix+'/emailuser')['Parameter']['Value']
-    variables['password'] = ssm.get_parameter(Name='/'+ssm_prefix+'/emailpass')['Parameter']['Value']
+    variables['client_id'] = ssm.get_parameter(Name='/'+ssm_prefix+'/clientid', WithDecryption=True)['Parameter']['Value']
+    variables['client_secret'] = ssm.get_parameter(Name='/'+ssm_prefix+'/clientsecret', WithDecryption=True)['Parameter']['Value']
+    variables['username'] = ssm.get_parameter(Name='/'+ssm_prefix+'/emailuser', WithDecryption=True)['Parameter']['Value']
+    variables['password'] = ssm.get_parameter(Name='/'+ssm_prefix+'/emailpass', WithDecryption=True)['Parameter']['Value']
+    variables['tenant'] = ssm.get_parameter(Name='/'+ssm_prefix+'/tenant', WithDecryption=True)['Parameter']['Value']
     variables['staffid'] = event['Details']['ContactData']['Attributes']['idnumber']
     variables['action'] = event['Details']['Parameters']['buttonpressed']
     variables['token_endpoint'] = 'https://graph.microsoft.com/v1.0/users'
