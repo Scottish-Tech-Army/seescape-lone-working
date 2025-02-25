@@ -16,11 +16,23 @@ You must have done all the following before you start installation.
 
 ## M365 account
 
-There are two related M365 requirements.
+The M365 requirements are to set up an M365 email account with a calendar to use, plus the capability for the application to log into it. This process is fiddly, but that's the trouble with security.
 
-- There is a need for an M365 email account with a calendar to use.
+Before you start working through the process, you need to decide what OAuth2 flow to use, because we are in that kind of world. There are two choices, either [ROPC (Resource Owner Password Credentials) flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth-ropc), or [client credentials flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow). The pros and cons of these methods are as follows.
 
-- In order for the applications to access that account, it is necessary to set up an application in the Microsoft sense.
+- Using ROPC is simpler. However, it means you must turn off MFA for the email account you use, and will pass the user account password around.
+
+- Using client credentials is a little more complex to set up, but avoids the above disadvantages.
+
+If this is all Greek to you, then you are very lucky to have been spared understanding OAuth2, and you should follow this flow.
+
+- If you cannot turn off MFA, use client credentials.
+
+- Otherwise, use ROPC.
+
+Good - we have a decision. Remember it.
+
+### Process overview
 
 Setting this up requires three steps.
 
@@ -74,7 +86,7 @@ You now need to create an *application*. This is the term that Microsoft Entra u
 
     - Do not bother with a `Redirect URI` - leave it blank. Nobody is going to use this interactively.
 
-- You have an app registration. Arrange that it can log in.
+- You have an app registration. *If you are using the client credentials model only*, create it some credentials.
 
     - Save off the `client ID` (shown as "Application (client) ID" in the overview)
 
@@ -88,13 +100,19 @@ You now need to create an *application*. This is the term that Microsoft Entra u
 
     - Click the "Microsoft Graph" button in the list of services
 
-    - Where there is a button to pick permissions type, pick `Application`. (The application is logging in under its own right, not in the scope of `Delegated permissions`).
+    - Where there is a button to pick permissions type:
+
+        - Pick `Application` for client credentials
+
+        - Pick `Delegated permissions` for ROPC.
 
     - Pick the `Calendars.ReadWrite` permission, and select it.
 
     - Next to `Add a permission`, there is a button `Grant admin consent for <your tenant name>`. Click it.
 
-Unfortunately, this grants the application rights to every mailbox, which is not such a good idea. The solution is either to change the process (and code) to use the ROPC OAuth2 flow (which is ugly), or to use PowerShell to set up permissions to restrict it to a single mailbox. Instructions for using PowerShell are the following.
+#### Further client credentials steps
+
+Unfortunately, this grants the application rights to every mailbox in the client credentials case, which is not such a good idea. The solution is to use PowerShell to set up permissions to restrict it to a single mailbox (or more accurately to a group consisting of a single mailbox). Instructions for this process are the following.
 
 - Go to the [Entra Admin Centre](https://entra.microsoft.com]
 

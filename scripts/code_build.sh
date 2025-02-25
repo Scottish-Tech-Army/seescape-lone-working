@@ -12,8 +12,9 @@ RUNTESTS=false
 
 # Set up where all the built zip files will go.
 mkdir -p build
+rm build/*.zip
 
-# Go to build the dependencies
+# Build the packages
 for TARGET in dependencies ConnectFunction CheckFunction
 do
     pushd lambdas/${TARGET}
@@ -31,13 +32,13 @@ do
     fi
 
     echo "Packaging target ${TARGET}"
+    rm -rf ${TARGET}/build
     if [[ "$TARGET" == "dependencies" ]]; then
         BUILDDIR=build/python
     else
         BUILDDIR=build
     fi
-    rm -rf $BUILDDIR
-    mkdir $BUILDDIR
+    mkdir -p $BUILDDIR
     cp -r src/* $BUILDDIR
     pip install -r requirements.txt -t $BUILDDIR
 

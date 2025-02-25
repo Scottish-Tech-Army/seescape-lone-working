@@ -1,181 +1,103 @@
-import requests  
-import logging as lg
+import requests
 from datetime import datetime, timedelta
 import boto3
 import os
+import loneworker_utils as utils
 
-logger = lg.getLogger()
-logger.setLevel("INFO")
+logger = utils.get_logger()
 
-def getauthcode(variables):
-    """ Get Authentication Code"""
-
-    # Set the authentication endpoint and token endpoint
-    auth_endpoint = 'https://login.microsoftonline.com/' + variables['tenant'] + '/oauth2/v2.0/token'
-    logger.info('Auth endpoint: %s', auth_endpoint)
-
-    # Create the payload for the token request
-    payload = {
-        'client_id': variables['client_id'],
-        'client_secret': variables['client_secret'],
-        'username': variables['username'],
-        'password': variables['password'],
-        'scope': 'https://graph.microsoft.com/Calendars.ReadWrite',
-        'grant_type': 'password'  
-    }
-
-    # Send the token request
-    response = requests.post(auth_endpoint, data=payload)
-
-    # Check if the request was successful
-    if response.status_code == 200:
-        # Get the access token from the response
-        access_token = response.json()['access_token']
-        logger.info('Authentication successful')
-        return access_token
+def send_warning_mail(manager, checkin, appointment):
+    """
+    Send a warning message about a meeting for which either checkin or checkout was missed.
+    """
+    logger.info("Sending warning mail")
+    if checkin:
+        subject = "Missed check-in"
+        content = "Check-in was missed for an appointment\n"
     else:
-        logger.error('Authentication failed: %d', response.status_code)
-        logger.error(response.text)
-        exit()
+        subject = "Missed check-in"
+        content = "Check-out was missed for an appointment\n"
 
+    content.append(f"  Subject: {appointment['subject']}")
+    content.append(f"  Start time: {appointment['start']}")
+    content.append(f"  End time: {appointment['end']}")
+    content.append(f"  Meeting details: {appointment['body']['content']}")
 
-def getCalendar(access_token, variables, headers):
-    """ Get Calendar"""
+    # TODO: make this email address configurable - it was "LoneWorkerNotifications@seescape.org.uk"
+    manager.send_mail("nobody@example.com", subject, content)
 
-    # Get the current date  
-    today = datetime.now().strftime('%Y-%m-%d')  
+def get_calendar_items(manager):
+    """
+    Get Calendar items from the MS Graph API
 
-    # Get the current time  
-    current_time = datetime.now()
-    
-    # Calculate the time 30 minutes in the future  
-    future_time = (current_time + timedelta(minutes=18)).strftime("%H:%M:%S.%f")[:-3]
-    
-    # Calculate the time 30 minutes in the past  
-    past_time = (current_time - timedelta(minutes=18)).strftime("%H:%M:%S.%f")[:-3]
-    past_one_minute = (current_time - timedelta(minutes=1)).strftime("%H:%M:%S.%f")[:-3]
-    
-    # Print the results  
-    print("Current Time:", current_time.strftime("%H:%M:%S"))
-    print("Time 15 Minutes in the Past:", past_time)
-    print("Time 15 Minutes in the Future:", future_time)
+    This code reads all two sets of events from the calendar of the configured user and returns them in two arrays.
 
-    params_start = {  
-        '$filter': f"start/dateTime ge '{today}T{past_time}Z' and start/dateTime le '{today}T{past_one_minute}Z'"  
-    }  
+    The first array is to catch appointments for which checkin should have occurred. This is those with a
+    start time at least 15 minutes in the past, and no more than 75 minutes in the past.
 
-    params_end = {  
-        '$filter': f"end/dateTime ge '{today}T{past_time}Z' and end/dateTime le '{today}T{past_one_minute}Z'"  
-    }  
+    The second array is to catch appointments for which checkout should have occurred. This is those with an
+    end time that is at least 15 minutes in the past, and no more than 75 minutes in the past.
 
-    # Send the calendar request  
-    response_start = requests.get(variables['token_endpoint'] + '/' + variables['username'] + '/calendar/events', headers=headers, params=params_start)
-    response_end = requests.get(variables['token_endpoint'] + '/' + variables['username'] + '/calendar/events', headers=headers, params=params_end)
+    In both cases, we are giving 15 minutes grace, and ignoring anything that is older than an hour.
+    """
+    logger.info("Get calendar events")
+    # Checkin filter finds events that started in the past hour
+    checkin_filter = utils.build_time_filter(75, -15, utils.START)
 
-    # Check if the request was successful
-    if response_start.status_code == 200 and response_end.status_code == 200:
-        # Get the appointments from the response
-        start_appointments = response_start.json()['value']
-        end_appointments = response_end.json()['value']
-        return start_appointments, end_appointments
+    # Checkout filter finds those that ended in the past hour
+    end_filter = utils.build_time_filter(75, -15, utils.END)
+
+    # Send the calendar request
+    checkin_appointments = manager.get_calendar_events(checkin_filter)
+    checkout_appointments = manager.get_calendar_events(checkout_filter)
+    logging.info("Returning %d checkin and %d checkout appointments", len(checkin_appointments), len(checkout_appointments))
+    return checkin_appointments, checkout_appointments
+
+def process_appointments(manager, appointments, checkin):
+    """
+    Process the Appointments
+    """
+    if checkin:
+        target_category = utils.CHECKED_IN
+        missed_category = utils.MISSED_CHECK_IN
     else:
-        logger.error('Failed to get calendar events!')
+        target_category = utils.CHECKED_OUT
+        missed_category = utils.MISSED_CHECK_OUT
+
+    for appointment in appointments:
+        categories = appointment['categories']
+        if target_category in categories:
+            # Either we are looking for checkin and there was one, or for checkouts and there was one.
+            continue
+        if missed_category in categories:
+            # We already flagged this as a problem
+            continue
+        if not checkin and utils.MISSED_CHECK_IN in categories:
+            # We should not flag a missed checkout if we flagged a missed checkin
+            continue
 
 
-def process_appointments(appointments, variables, headers):
-    """ Process the Appointments"""
+        # If we got here, there is a problem
+        subject = appointment['subject']
+        logger.warn("Missed checkin or checkout for appointment: %s", subject)
+        send_warning_email(manager, checkin, appointment)
 
-    if len(appointments[0]) == 0:
-        print('No missed start appointments found!')
-    else:
-        print('Missed start appointments found!')
-        for appointment in appointments[0]:
-            if 'Missed-Check-In' not in appointment['categories'] and 'Checked-In' not in appointment['categories']:
-                appointment['categories'] = ['Missed-Check-In']
-                appointment['subject'] = "Missed-Check-In : " +  appointment['subject']
-                
-                response = requests.patch(variables['token_endpoint'] + '/' + variables['username'] + '/calendar/events/' + appointment['id'], headers=headers, json=appointment)
-                logger.info('Appointment updated with code: %s', str(response.status_code))
-                message = {
-                    "subject" : "Missed Check-In",
-                    "content" : "The check-in time has been missed for the appointment: " + appointment['subject']
-                }
-                send_email(headers, message)
-            else:
-                logger.info('Appointment already flagged')
-        
-    
-    if len(appointments[1]) == 0:
-        print('No missed end appointments found!')
-    else:
-        print('Missed end appointments found!')
-        for appointment in appointments[1]:
-            if "Checked-In" in appointment['subject']:
-                if 'Missed-Check-Out' not in appointment['categories'] and 'Checked-Out' not in appointment['categories'] and 'Missed-Check-In' not in appointment['categories']:
-                    appointment['subject'] = appointment['subject'].replace("Checked-In", "Missed-Check-Out")
-                    appointment['categories'] = ['Missed-Check-Out']
-    
-                    response = requests.patch(variables['token_endpoint'] + '/' + variables['username'] + '/calendar/events/' + appointment['id'], headers=headers, json=appointment)
-                    logger.info('Appointment updated with code: %s', str(response.status_code))
-                    message = {
-                        "subject" : "Missed Check-Out",
-                        "content" : "The check-out time has been missed for the appointment: " + appointment['subject']
-                    }
-                    send_email(headers, message)
-                else:
-                    logger.info('Appointment already flagged')
-
-
-def send_email(headers, message):
-    """ Send Email"""
-    message_payload =   {
-                            "message": {
-                                "subject": message['subject'],
-                                "body": {
-                                    "contentType": "Text",
-                                    "content": message['content']
-                                },
-                                "toRecipients": [
-                                    {
-                                        "emailAddress": {
-                                            "address": "LoneWorkerNotifications@seescape.org.uk"
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-    
-    response = requests.post('https://graph.microsoft.com/v1.0/me/sendMail', headers=headers, json=message_payload)
-    logger.info('Email sent with code: %s', str(response.status_code))
+        # We managed to send an email to warn people, so update the appointment
+        categories.append(missed_category)
+        changes = {
+            'subject': missed_category + ": " + subject,
+            'categories': categories
+        }
+        manager.patch_calendar_event(appointment['id'], changes)
+        logger.info("Appointment updated successfully")
 
 def lambda_handler(event, context):
     """ Lambda Handler"""
+    manager = utils.LoneWorkerManager()
 
-    ssm_prefix = os.environ['ssm_prefix']
+    # Read the relevant appointments from the calendar
+    checkin_appointments, checkout_appointments = get_calendar_items(manager)
 
-    # Set the client ID, client secret, username, and password  
-    ssm = boto3.client('ssm')
-    ssm_prefix = os.environ['ssm_prefix']
-    variables = {}
-    variables['client_id'] = ssm.get_parameter(Name='/'+ssm_prefix+'/clientid', WithDecryption=True)['Parameter']['Value']
-    variables['client_secret'] = ssm.get_parameter(Name='/'+ssm_prefix+'/clientsecret', WithDecryption=True)['Parameter']['Value']
-    variables['username'] = ssm.get_parameter(Name='/'+ssm_prefix+'/emailuser', WithDecryption=True)['Parameter']['Value']
-    variables['password'] = ssm.get_parameter(Name='/'+ssm_prefix+'/emailpass', WithDecryption=True)['Parameter']['Value']
-    variables['tenant'] = ssm.get_parameter(Name='/'+ssm_prefix+'/tenant', WithDecryption=True)['Parameter']['Value']
-    variables['token_endpoint'] = 'https://graph.microsoft.com/v1.0/users'
-
-    logger.info('client id: %s', variables['client_id'])
-    logger.info('tenant   : %s', variables['tenant'])
-    logger.info('email    : %s', variables['username'])
-
-    access_token = getauthcode(variables)
-
-    headers = {
-        'Authorization': 'Bearer ' + access_token,  
-        'Content-Type': 'application/json',
-        'Prefer': 'outlook.timezone="Europe/London"' 
-    }
-
-    appointments = getCalendar(access_token, variables, headers)
-
-    process_appointments(appointments, variables, headers)
+    # Process the appointments as required
+    process_appointments(manager, checkin_appointments, checkin=True)
+    process_appointments(manager, checkout_appointments, checkin=False)

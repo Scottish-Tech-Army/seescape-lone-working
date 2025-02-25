@@ -8,6 +8,10 @@ export AWS_PROFILE=AdministratorAccess-575108929686
 export BUCKET_NAME=plw-test-bucket # S3 bucket used for lambda storage
 export ENVIRONMENT=plw             # Environment name, used in some tags
 
+# OAuth2 flow in use. See the docs if you do not understand this. Valid values are
+# "client" and "ropc".
+export OAUTH2_FLOW=client
+
 # These normally do not have to be distinct; leave unchanged unless you have a good reason.
 export APP=loneworker # Used for tags and naming
 

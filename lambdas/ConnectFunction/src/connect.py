@@ -1,198 +1,140 @@
-import requests  
-import logging as lg
-from datetime import datetime, timedelta
+import requests
+from datetime import datetime
 import boto3
 import os
 
-logger = lg.getLogger()
-logger.setLevel("INFO")
+import loneworker_utils as utils
 
-def getauthcode(variables):
-    """ Get Authentication Code for MS Graph Calls"""
+KEY_CHECK_IN="1"
+KEY_CHECK_OUT="2"
+KEY_CHECK_EMERGENCY="3"
 
-    # Set the authentication endpoint
-    auth_endpoint = 'https://login.microsoftonline.com/' + variables['tenant'] + '/oauth2/v2.0/token'
+logger = utils.get_logger()
 
-    # Create the payload for the token request
-    payload = {  
-        'client_id': variables['client_id'],  
-        'client_secret': variables['client_secret'],  
-        'username': variables['username'],  
-        'password': variables['password'],  
-        'scope': 'https://graph.microsoft.com/calendars.readwrite',  
-        'grant_type': 'password'  
-    }
+def getCalendar(manager, action):
+    """
+    Get Calendar items from the MS Graph API
 
-    # Send the token request
-    response = requests.post(auth_endpoint, data=payload)
+    This code reads relevant events from the calendar of the configured user and returns them in an array.
+    """
+    logger.info("Get calendar events")
 
-    # Check if the request was successful
-    if response.status_code == 200:
-        # Get the access token from the response and return it
-        access_token = response.json()['access_token']
-        logger.info('Authentication successful')
-        return access_token
+    # The two arms below are identical; they might need to be tweaked.
+    if action == KEY_CHECK_IN:
+        # Look for a meeting due to start between 30 minutes ago and 30 minutes in the future.
+        filter = utils.build_time_filter(30, 30, utils.START)
     else:
-        logger.error('Authentication failed')
-        logger.error(response.text)
-        exit()
+        # Look for a meeting due to end between 30 minutes ago and 30 minutes in the future.
+        assert action == KEY_CHECK_OUT, "Unexpected action value"
+        filter = utils.build_time_filter(30, 30, utils.END)
 
+    # Retrieve the appointments
+    appointments = manager.get_calendar_events(filter)
+    return appointments
 
-def getCalendar(variables, headers):
-    """ Get Calendar items from the MS Graph API"""
+def process_appointments(manager, appointments, staffid, action):
+    """
+    Process Appointments
 
-    # Get the current date
-    today = datetime.now().strftime('%Y-%m-%d')  
+    This method runs through all appointments found in the previous step.
 
-    # Get the current time  
-    current_time = datetime.now()
-    
-    # Calculate the time 16 minutes in the future and the past based on the current time.
-    # This gives an approximate 15 minute window before for the appointment to be checked in.
-    future_time = (current_time + timedelta(minutes=16)).strftime("%H:%M:%S.%f")[:-3]
-    past_time = (current_time - timedelta(minutes=16)).strftime("%H:%M:%S.%f")[:-3]
-    
-    # Print the current time and the action selected from the menu.
-    logger.info("Current Time: %s", current_time.strftime("%H:%M:%S"))
-    logger.info("Action Selected: %s", variables['action'])
+    - It ignores all appointments that do not have "ID:staffid" in the body
+    - If this is a checkin, then it changes the subject and categories of the appointment
+    - If this is a checkout, it looks for a corresponding checked in appointment
 
-    if variables['action'] == "1":
-        # Option 1 is to check in an appointment.
-        # Sets a filter base on the start time and date of appointments. This uses the past and future time calculated above
-        # to give a 30 minute window that the appointment would have started in.
-        params = {  
-            '$filter': f"start/dateTime ge '{today}T{past_time}Z' and start/dateTime le '{today}T{future_time}Z'"  
-        }  
-    if variables['action'] == "2":
-        # Option 2 is to check out of an appointment.
-        # Sets a filter base on the end time and date of appointments. This uses the past and future time calculated above
-        # to give a 30 minute window that the appointment would have ended in.
-        params = {  
-            '$filter': f"end/dateTime ge '{today}T{past_time}Z' and end/dateTime le '{today}T{future_time}Z'"  
-        } 
+    It updates appointments as necessary, and returns a string indicating what to do.
+    """
+    logger.info("Processing appointments list")
+    id_string = f"ID:{staffid}"
 
-    # Get the appointments from the calendar using MS Graph API
-    response = requests.get(variables['token_endpoint'] + '/' + variables['username'] + '/calendar/events', headers=headers, params=params)
-
-    # Check if the request was successful
-    if response.status_code == 200:
-        # Get the appointments from the response
-        appointments = response.json()['value']
-        return appointments
-    else:
-        logger.error('Failed to get calendar events!')
-        logger.error(response.text)
-
-
-def process_appointments(appointments, variables, headers):
-    """ Process Appointments"""
-
+    # We first ditch any appointments that do not match the staff ID.
+    matching_appointments = []
     for appointment in appointments:
-        # Check to see if the staff ID is in the appointment body
-        if 'ID:'+variables['staffid'] in appointment['bodyPreview']:
-            logger.info('Appointment found for ID: %s', variables['staffid'])
-            logger.info('Appointment subject is: %s', appointment['subject'])
-            # Checked In
-            if variables['action'] == '1':
-                if "Checked-In" in appointment['subject']:
-                    logger.info('Appointment already Checked-In')
-                    return "Your appointment has already been checked into"
-                appointment['categories'] = ['Checked-In']
-                appointment['subject'] = "Checked-In : " + appointment['subject']
-                message = "Your appointment has been checked in"
-            
-            # Checked Out
-            if variables['action'] == '2':
-                if "Checked-Out" in appointment['subject']:
-                    logger.info('Appointment already Checked-Out')
-                    return "Your have already checked out of your appointment"
-                
-                appointment['categories'] = ['Checked-Out']
-                if "Checked-In" in appointment['subject']:
-                    appointment['subject'] = appointment['subject'].replace("Checked-In", "Checked-Out")
-                elif "Missed-Check-Out" in appointment['subject']:
-                    appointment['subject'] = appointment['subject'].replace("Missed-Check-Out", "Checked-Out")
-                else:
-                    appointment['subject'] = "Checked-Out : " + appointment['subject']
-                message = "Your appointment has been checked out"
-            
-            if variables['action']=='3':
-                send_email(headers, {
-                    "subject" : "Emergency Assistance Required!",
-                    "content" : "Emergency Assistance is required for: " + appointment['subject']
-                })
+        if not id_string in appointment['bodyPreview']:
+            # Does not match the ID - ignore it.
+            logger.debug("Ignoring appointment %s", appointment['subject'])
+            continue
+        if action == KEY_CHECK_IN and utils.CHECKED_OUT in appointment['categories']:
+            # Cannot check into an appointment to which you have checked out
+            logger.info("Appointment checked out - try the next one: %s", appointment['subject'])
+            continue
+        if action == KEY_CHECK_OUT and utils.CHECKED_IN not in appointment['categories']:
+            # Cannot check out of an appointment to which you have not checked in
+            logger.info("Appointment not checked in - try the next one: %s", appointment['subject'])
+            continue
+        matching_appointments.append(appointment)
 
-            response = requests.patch(variables['token_endpoint'] + '/' + variables['username'] + '/calendar/events/' + appointment['id'], headers=headers, json=appointment)
-            logger.info('Appointment updated with code: %s', str(response.status_code))
+    # We found the appointment to deal with. If there were multiple, we should give up now.
+    if len(matching_appointments) == 0:
+        return "No matching appointments found - please phone the office"
+    if len(matching_appointments) > 1:
+        return "Multiple matching appointments found - please phone the office"
 
-            if response.status_code == 200:
-                return message
-            else:
-                return "There has been an error, please contact the office for assistance"
+    appointment = matching_appointments.pop()
 
-def send_email(headers, message):
-    """ Send Email"""
-    message_payload =   {
-                            "message": {
-                                "subject": message['subject'],
-                                "body": {
-                                    "contentType": "Text",
-                                    "content": message['content']
-                                },
-                                "toRecipients": [
-                                    {
-                                        "emailAddress": {
-                                            "address": "LoneWorkerNotifications@seescape.org.uk"
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-    
-    response = requests.post('https://graph.microsoft.com/v1.0/me/sendMail', headers=headers, json=message_payload)
-    logger.info('Email sent with code: %s', str(response.status_code))
+    time_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    if action == KEY_CHECK_IN:
+        target_category = utils.CHECKED_IN
+        body_message = f"<p>Checked in by phone at {time_now}</p>\r\n"
+        message = "Your appointment has been checked in"
+    else:
+        assert action == KEY_CHECK_OUT, "Unexpected action value"
+        target_category = utils.CHECKED_OUT
+        body_message = f"<p>Checked out by phone at {time_now}</p>\r\n"
+        message = "Your appointment has been checked out"
+
+    # Set the category
+    changes = {}
+    categories = appointment['categories']
+    if target_category in categories:
+        logger.info('Appointment already has %s category', target_string)
+    else:
+        logger.info("Update categories")
+        categories.append(target_category)
+        changes['categories'] = categories
+
+    body = appointment['body']
+    body['content'] = body['content'].replace("</body>", f"{body_message}</body>")
+    changes['body'] = body
+    manager.patch_calendar_event(appointment['id'], changes)
+    logger.info("Appointment updated successfully")
+
+    return message
 
 def lambda_handler(event, context):
     """ Lambda Handler"""
 
-    # Set the client ID, client secret, username, and password  
-    ssm_prefix = os.environ['ssm_prefix']
-    ssm = boto3.client('ssm')
-    variables = {}
-    variables['client_id'] = ssm.get_parameter(Name='/'+ssm_prefix+'/clientid', WithDecryption=True)['Parameter']['Value']
-    variables['client_secret'] = ssm.get_parameter(Name='/'+ssm_prefix+'/clientsecret', WithDecryption=True)['Parameter']['Value']
-    variables['username'] = ssm.get_parameter(Name='/'+ssm_prefix+'/emailuser', WithDecryption=True)['Parameter']['Value']
-    variables['password'] = ssm.get_parameter(Name='/'+ssm_prefix+'/emailpass', WithDecryption=True)['Parameter']['Value']
-    variables['tenant'] = ssm.get_parameter(Name='/'+ssm_prefix+'/tenant', WithDecryption=True)['Parameter']['Value']
-    variables['staffid'] = event['Details']['ContactData']['Attributes']['idnumber']
-    variables['action'] = event['Details']['Parameters']['buttonpressed']
-    variables['token_endpoint'] = 'https://graph.microsoft.com/v1.0/users'
+    manager = utils.LoneWorkerManager()
 
-    logger.info("Getting Authentication Code")
-    access_token = getauthcode(variables)
-    logger.info("Authentication Code Received")
+    staff_id = event['Details']['ContactData']['Attributes']['idnumber']
+    action = event['Details']['Parameters']['buttonpressed']
 
     headers = {
-        'Authorization': 'Bearer ' + access_token,  
+        'Authorization': 'Bearer ' + manager.token,
         'Content-Type': 'application/json',
-        'Prefer': 'outlook.timezone="Europe/London"' 
+        'Prefer': 'outlook.timezone="Europe/London"'
     }
 
+    message = ""
+
+    if action == KEY_CHECK_IN or action == KEY_CHECK_OUT:
+        logger.info("Check-in or out action selected")
+        appointments = getCalendar(manager, action)
+        message = process_appointments(manager, appointments, staff_id, action)
+    elif action == KEY_CHECK_EMERGENCY:
+        logger.info("Emergency action selected")
+        # TODO: recipient was LoneWorkerNotifications@seescape.org.uk; make configurable
+        subject = "Emergency Assistance Required!",
+        content = "Emergency Assistance is required for ID " + staff_id
+        manager.send_email("nobody@example.com", subject, content)
+        message = "Message processed" # Deliberately vague, in case the SOS is overheard
+    else:
+        logger.error("Invalid action selected")
+        raise ValueError(f"Invalid action selected: {action}")
+
     resultMap = {
-            "message" : ""
+            "message" : message
             }
-
-    if variables['action'] != '3':
-        appointments = getCalendar(variables, headers)
-        if appointments:
-            resultMap["message"] = process_appointments(appointments, variables, headers)
-        else:
-            resultMap["message"] = "No appointment found, please contact the office."
-
-    if variables['action'] == '3':
-        send_email(headers, {
-            "subject" : "Emergency Assistance Required!",
-            "content" : "Emergency Assistance is required for ID " + variables['staffid']
-        })
 
     return resultMap

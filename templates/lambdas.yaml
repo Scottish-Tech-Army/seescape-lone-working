@@ -45,6 +45,11 @@ Resources:
             - ssm:GetParameter
             Effect: Allow
             Resource:
+              Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:*
+          - Action:
+            - ssm:GetParameter
+            Effect: Allow
+            Resource:
               Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${app}/tenant
           - Action:
             - ssm:GetParameter
