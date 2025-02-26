@@ -53,8 +53,6 @@ Update the secrets to have the correct values as follows.
 
     *TODO: Details of values and parameters to be provided.*
 
-    *TODO: The Client Secret is almost certainly not required and can be removed.*
-
 ### Configure Amazon Connect
 
 This is largely done by script.

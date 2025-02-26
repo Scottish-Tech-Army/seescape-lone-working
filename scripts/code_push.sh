@@ -56,3 +56,21 @@ do
     aws lambda delete-layer-version --layer-name ${LAYER_NAME} --version-number ${NUMBER}
 done
 
+echo "TODO: REINSTATE THIS, BROKEN BY QUOTA LIMITATIONS"
+exit 0
+
+# Now set up concurrency for the ConnectFunction. We do not care about CheckFunction (that is async)
+echo "Update concurrency for ConnectFunction (only)"
+FUNCTION_VERSIONS=$(aws lambda list-versions-by-function --function-name ConnectFunction | jq -r '.Versions | map(.Version) | sort | join(" ")')
+echo "  existing versions ${FUNCTION_VERSIONS}"
+for VERSION in $(echo ${FUNCTION_VERSIONS} | awk '{for(i=2;i<NF;i++) printf $i " ";}')
+do
+    echo "  remove version ${VERSION}"
+    aws lambda delete-function --function-name ConnectFunction --qualifier ${VERSION}
+done
+
+VERSION=$(aws lambda publish-version --function-name ConnectFunction | jq ".Version" -r)
+echo "  published version ${VERSION}"
+aws lambda put-provisioned-concurrency-config --function-name ConnectFunction \
+  --qualifier ${VERSION} \
+  --provisioned-concurrent-executions 1

@@ -2,4 +2,4 @@
 
 This function performs the check capability. It is triggered periodically to check for users who have checked in but not checked out.
 
-
+TODO: write up properly
