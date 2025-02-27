@@ -30,5 +30,3 @@ There are documents covering the following.
 
 - [User instructions](docs/user.md) (for those using the system, not those responsible for installing or managing it)
 
-
-
