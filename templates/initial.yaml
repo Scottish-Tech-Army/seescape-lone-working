@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Initial prerequisite resources.
+
+Parameters:
+  bucketName:
+    Type: String
+    Description: The name of the S3 bucket to create.
+  environment:
+    Type: String
+    Description: The environment name.
+  app:
+    Type: String
+    Description: App name used for tagging
+
+Resources:
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: { Ref: bucketName }
+      AccessControl: Private
+      Tags:
+        - Key: env
+          Value: { Ref: environment }
+        - Key: app
+          Value: { Ref: app }
+  Connect:
+    Type: 'AWS::Connect::Instance'
+    Properties:
+      Attributes:
+        InboundCalls: true
+        OutboundCalls: false  
+      #DirectoryId: { Ref: environment } # Not required if this is not using an AWS directory for identity management
+      IdentityManagementType: CONNECT_MANAGED # Users are stored only within the Connect instance
+      InstanceAlias:
+        Fn::Sub: "${app}-${environment}"
+      Tags: 
+        - Key: env
+          Value: { Ref: environment }
+        - Key: app
+          Value: { Ref: app }
