@@ -1,7 +1,5 @@
 import requests
 from datetime import datetime, timedelta
-import boto3
-import os
 import loneworker_utils as utils
 
 logger = utils.get_logger()
@@ -13,15 +11,16 @@ def send_warning_mail(manager, checkin, appointment):
     logger.info("Sending warning mail")
     if checkin:
         subject = "Missed check-in"
-        content = "Check-in was missed for an appointment\n"
+        lines = ["Check-in was missed for an appointment"]
     else:
-        subject = "Missed check-in"
-        content = "Check-out was missed for an appointment\n"
+        subject = "Missed check-out"
+        lines = ["Check-out was missed for an appointment"]
 
-    content.append(f"  Subject: {appointment['subject']}")
-    content.append(f"  Start time: {appointment['start']}")
-    content.append(f"  End time: {appointment['end']}")
-    content.append(f"  Meeting details: {appointment['body']['content']}")
+    lines.append(f"  Subject: {appointment['subject']}")
+    lines.append(f"  Start time: {appointment['start']}")
+    lines.append(f"  End time: {appointment['end']}")
+    lines.append(f"  Meeting details: {appointment['body']['content']}")
+    content = "\r\n".join(lines)
 
     # TODO: make this email address configurable - it was "LoneWorkerNotifications@seescape.org.uk"
     manager.send_mail("nobody@example.com", subject, content)
