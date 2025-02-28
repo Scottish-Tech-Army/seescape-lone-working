@@ -1,6 +1,5 @@
 import requests
 from datetime import datetime
-import boto3
 import os
 
 import loneworker_utils as utils
@@ -44,8 +43,11 @@ def process_appointments(manager, appointments, staffid, action):
 
     It updates appointments as necessary, and returns a string indicating what to do.
     """
-    logger.info("Processing appointments list")
+    logger.info("Processing appointments list for ID %s, action %s", staffid, action)
     id_string = f"ID:{staffid}"
+
+    # Caller should check this, but being defensive.
+    assert action == KEY_CHECK_IN or action == KEY_CHECK_OUT, "Unexpected action value"
 
     # We first ditch any appointments that do not match the staff ID.
     matching_appointments = []
@@ -79,7 +81,6 @@ def process_appointments(manager, appointments, staffid, action):
         body_message = f"<p>Checked in by phone at {time_now}</p>\r\n"
         message = "Your appointment has been checked in"
     else:
-        assert action == KEY_CHECK_OUT, "Unexpected action value"
         target_category = utils.CHECKED_OUT
         body_message = f"<p>Checked out by phone at {time_now}</p>\r\n"
         message = "Your appointment has been checked out"
@@ -88,7 +89,11 @@ def process_appointments(manager, appointments, staffid, action):
     changes = {}
     categories = appointment['categories']
     if target_category in categories:
-        logger.info('Appointment already has %s category', target_string)
+        logger.info('Appointment already has %s category', target_category)
+        if action == KEY_CHECK_IN:
+            message = "Your appointment has already been checked in"
+        else:
+            message = "Your appointment has already been checked out"
     else:
         logger.info("Update categories")
         categories.append(target_category)

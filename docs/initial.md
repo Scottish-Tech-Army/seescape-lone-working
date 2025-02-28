@@ -27,7 +27,7 @@ bash scripts/initial.sh
 - Build and push the code. *This reports that it is ignoring some lambdas that do not exist yet - this is benign.*
 
 ~~~bash
-bash scripts/code_build.sh
+bash scripts/code_build.sh notest
 bash scripts/code_push.sh
 ~~~
 

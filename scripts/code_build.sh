@@ -7,12 +7,24 @@ echo "App: ${APP}"
 # This script must run from the parent directory of the scripts directory
 cd "$(dirname "$0")/.."
 
-# No tests yet
-RUNTESTS=false
+# Determine whether tests should be run based on the command line argument.
+if [ "$#" -gt 0 ]; then
+    if [ "$1" = "test" ]; then
+        RUNTESTS="true"
+    elif [ "$1" = "notest" ]; then
+        RUNTESTS="false"
+    else
+        echo "Usage: $0 {test|notest}" >&2
+        exit 1
+    fi
+else
+    echo "Usage: $0 {test|notest}" >&2
+    exit 1
+fi
 
 # Set up where all the built zip files will go.
 mkdir -p build
-rm build/*.zip
+rm -f build/*.zip
 
 # Build the packages
 for TARGET in dependencies ConnectFunction CheckFunction
@@ -21,11 +33,14 @@ do
 
     if [[ "${RUNTESTS:-}" == "true" ]]; then
         echo "Testing target ${TARGET}"
-        python -m venv ${TARGET}/.venv
-        . .venv/bin/activate
+        VENV=${TARGET}/venv
+        python -m venv ${VENV}
+        . ${VENV}/bin/activate
         pip install -r requirements.txt
         # Run tests at this point.
-        echo "No actual tests"
+        # TODO: This works but is really rather verbose; better to log to file
+        echo "Run tests"
+        pytest -o log_cli=true -o log_cli_level=info
         deactivate
     else
         echo "Tests not run for target ${TARGET}"
