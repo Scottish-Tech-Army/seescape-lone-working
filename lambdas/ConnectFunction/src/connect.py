@@ -6,7 +6,7 @@ import loneworker_utils as utils
 
 KEY_CHECK_IN="1"
 KEY_CHECK_OUT="2"
-KEY_CHECK_EMERGENCY="3"
+KEY_EMERGENCY="3"
 
 logger = utils.get_logger()
 
@@ -16,16 +16,24 @@ def getCalendar(manager, action):
 
     This code reads relevant events from the calendar of the configured user and returns them in an array.
     """
-    logger.info("Get calendar events")
+    logger.info("Get calendar events - action %s", action)
 
-    # The two arms below are identical; they might need to be tweaked.
+    time_filters = []
     if action == KEY_CHECK_IN:
         # Look for a meeting due to start between 30 minutes ago and 30 minutes in the future.
-        filter = utils.build_time_filter(30, 30, utils.START)
-    else:
+        time_filters.append(utils.TimeFilter(minutes=-30, before_or_after=utils.AFTER, start_or_end=utils.START))
+        time_filters.append(utils.TimeFilter(minutes=30, before_or_after=utils.BEFORE, start_or_end=utils.START))
+    elif action == KEY_CHECK_IN:
         # Look for a meeting due to end between 30 minutes ago and 30 minutes in the future.
-        assert action == KEY_CHECK_OUT, "Unexpected action value"
-        filter = utils.build_time_filter(30, 30, utils.END)
+        time_filters.append(utils.TimeFilter(minutes=-30, before_or_after=utils.AFTER, start_or_end=utils.END))
+        time_filters.append(utils.TimeFilter(minutes=30, before_or_after=utils.BEFORE, start_or_end=utils.END))
+    else:
+        # Look for a meeting due to start no later than 90 minutes ago, and to end no sooner than 15 minutes in the past
+        assert action == KEY_EMERGENCY, "Unexpected action value"
+        time_filters.append(utils.TimeFilter(minutes=-75, before_or_after=utils.AFTER, start_or_end=utils.START))
+        time_filters.append(utils.TimeFilter(minutes=15, before_or_after=utils.BEFORE, start_or_end=utils.END))
+
+    filter = utils.build_time_filter(time_filters)
 
     # Retrieve the appointments
     appointments = manager.get_calendar_events(filter)
@@ -47,7 +55,7 @@ def process_appointments(manager, appointments, staffid, action):
     id_string = f"ID:{staffid}"
 
     # Caller should check this, but being defensive.
-    assert action == KEY_CHECK_IN or action == KEY_CHECK_OUT, "Unexpected action value"
+    assert action == KEY_CHECK_IN or action == KEY_CHECK_OUT or action == KEY_EMERGENCY, "Unexpected action value"
 
     # We first ditch any appointments that do not match the staff ID.
     matching_appointments = []
@@ -67,6 +75,7 @@ def process_appointments(manager, appointments, staffid, action):
         matching_appointments.append(appointment)
 
     # We found the appointment to deal with. If there were multiple, we should give up now.
+    # For an emergency, these are not important; nothing to do, and the message will be suppressed.
     if len(matching_appointments) == 0:
         return "No matching appointments found - please phone the office"
     if len(matching_appointments) > 1:
@@ -80,10 +89,14 @@ def process_appointments(manager, appointments, staffid, action):
         target_category = utils.CHECKED_IN
         body_message = f"<p>Checked in by phone at {time_now}</p>\r\n"
         message = "Your appointment has been checked in"
-    else:
+    elif action == KEY_CHECK_OUT:
         target_category = utils.CHECKED_OUT
         body_message = f"<p>Checked out by phone at {time_now}</p>\r\n"
         message = "Your appointment has been checked out"
+    else:
+        target_category = utils.EMERGENCY
+        body_message = f"<p>Emergency reported by phone at {time_now}</p>\r\n"
+        message = "" # This will be ignored
 
     # Set the category
     changes = {}
@@ -92,8 +105,10 @@ def process_appointments(manager, appointments, staffid, action):
         logger.info('Appointment already has %s category', target_category)
         if action == KEY_CHECK_IN:
             message = "Your appointment has already been checked in"
-        else:
+        elif action == KEY_CHECK_OUT:
             message = "Your appointment has already been checked out"
+        else:
+            message = "Emergency already registered"
     else:
         logger.info("Update categories")
         categories.append(target_category)
@@ -127,13 +142,20 @@ def lambda_handler(event, context):
         logger.info("Check-in or out action selected")
         appointments = getCalendar(manager, action)
         message = process_appointments(manager, appointments, staff_id, action)
-    elif action == KEY_CHECK_EMERGENCY:
+    elif action == KEY_EMERGENCY:
         logger.info("Emergency action selected")
         # TODO: recipient was LoneWorkerNotifications@seescape.org.uk; make configurable
         subject = "Emergency Assistance Required!",
         content = "Emergency Assistance is required for ID " + staff_id
         manager.send_email("nobody@example.com", subject, content)
         message = "Message processed" # Deliberately vague, in case the SOS is overheard
+
+        logger.info("Emergency mail sent - add emergency tag")
+        appointments = getCalendar(manager, action)
+        # We do not use the message we get back here except to log it; we do try to update the meeting, but cannot do more than that.
+        unused_message = process_appointments(manager, appointments, staff_id, action)
+
+        logger.info("Got message from appointments: %s", unused_message)
     else:
         logger.error("Invalid action selected")
         raise ValueError(f"Invalid action selected: {action}")

@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import logging
 import os
 import requests
+from collections import namedtuple
 
 logger = logging.getLogger(__name__)
 # Do not make the log level DEBUG or it explodes
@@ -20,11 +21,15 @@ def get_logger():
 # Start or end for time filters
 START = "start"
 END = "end"
-# Checked in or out for categories and body string.
+BEFORE = "before"
+AFTER = "after"
+
+# Categories used - these are also logged in various places.
 CHECKED_IN = "Checked-In"
 CHECKED_OUT = "Checked-Out"
 MISSED_CHECK_IN = "Missed-Check-In"
 MISSED_CHECK_OUT = "Missed-Check-Out"
+EMERGENCY = "Emergency"
 
 class LoneWorkerManager:
     def __init__(self):
@@ -184,24 +189,50 @@ def get_param(ssm, prefix, name, optional=False):
             logger.error("Missing value for non-optional parameter %s", param)
             raise ValueError(f"Parameter {prefix}/{name} not found")
 
-def build_time_filter(past_min, future_min, start_or_end):
-    """
-    Build a filter for Microsoft graph APIs that
-    - checks on start or end date (which should be one of START and END)
-    - starts past_min minutes in the past
-    - ends future_min minutes in the future
-    """
-    logger.info("Build a filter on %s date from %d minutes in the past to %d minutes in the future", start_or_end, past_min, future_min)
-    # Get the current date
-    today = datetime.now().strftime('%Y-%m-%d')
 
-    # Get the current time
+TimeFilter = namedtuple('TimeFilter', ['minutes', 'before_or_after', 'start_or_end'])
+
+def build_time_filter(time_filters):
+    """
+    Given an array of TimeFilters, build a string filter for Microsoft graph APIs that
+    compares the timestamp in a meeting with provided data. Each value in time_filters is
+    a separate clause, and they are all stuck together with "and" statements.
+
+    For each time filter.
+    - "minutes" is the number of minutes the test time should be after the current time (negative for past)
+    - "before_or_after" checks whether the test should be for appointment times that are before or after that time
+    - "start_or_end" tests whether it is the appointment start or end time that is being compared.
+
+    """
+    logger.info("Number of clauses in time filter: %d", len(time_filters))
+    clauses = []
     current_time = datetime.now()
 
-    # Calculate the past and future times
-    future_time = (current_time + timedelta(minutes=future_min)).strftime("%H:%M:%S.%f")[:-3]
-    past_time = (current_time - timedelta(minutes=past_min)).strftime("%H:%M:%S.%f")[:-3]
+    # Get the current date
+    # TODO: this will not cope with times that go past midnight.
+    # TODO: I hope this copes cleanly with timezones; need to double check and test.
+    today = datetime.now().strftime('%Y-%m-%d')
 
-    filter = f"{start_or_end}/dateTime ge '{today}T{past_time}Z' and {start_or_end}/dateTime le '{today}T{future_time}Z'"
-    logger.info("Resulting filter: %s", filter)
-    return filter
+    for time_filter in time_filters:
+        if time_filter.before_or_after not in [BEFORE, AFTER]:
+            raise ValueError("Time direction must be either '{BEFORE}' or '{AFTER}' - provide value '{time_filter.before_or_after}'")
+        if time_filter.start_or_end not in [START, END]:
+            raise ValueError(f"Start or end must be either '{START}' or '{END}' - provide value '{time_filter.start_or_end}'")
+
+        logger.info("Building a filter on %s time, checking that it is %s a time %d minutes from now",
+                    time_filter.start_or_end, time_filter.before_or_after, time_filter.minutes)
+
+        # Calculate the modified time
+        modified_time = (current_time + timedelta(minutes=time_filter.minutes)).strftime("%H:%M:%S.%f")[:-3]
+        if time_filter.before_or_after == BEFORE:
+            # Check that appointment time is less than calculated time.
+            g_or_l = "le"
+        else:
+            # Check that appointment time is greater than calculated time.
+            g_or_l = "ge"
+
+        clauses.append(f"{time_filter.start_or_end}/dateTime {g_or_l} '{today}T{modified_time}Z'")
+
+    filter_str = " and ".join(clauses)
+    logger.info("Resulting filter: %s", filter_str)
+    return filter_str
