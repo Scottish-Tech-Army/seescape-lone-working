@@ -40,15 +40,21 @@ def get_calendar_items(manager):
     In both cases, we are giving 15 minutes grace, and ignoring anything that is older than an hour.
     """
     logger.info("Get calendar events")
-    # Checkin filter finds events that started in the past hour
-    checkin_filter = utils.build_time_filter(75, -15, utils.START)
+    # Checkin filter finds events starting between 75 and 15 minutes ago
+    checkin_filters = []
+    checkin_filters.append(utils.TimeFilter(minutes=-75, before_or_after=utils.AFTER, start_or_end=utils.START))
+    checkin_filters.append(utils.TimeFilter(minutes=-15, before_or_after=utils.BEFORE, start_or_end=utils.START))
+    checkin_filter_str = utils.build_time_filter(checkin_filters)
 
-    # Checkout filter finds those that ended in the past hour
-    end_filter = utils.build_time_filter(75, -15, utils.END)
+    # Checkout filter finds those that ended between 15 minutes ago, and 75 minutes ago - as above, but end time
+    time_filters = []
+    time_filters.append(utils.TimeFilter(minutes=-75, before_or_after=utils.AFTER, start_or_end=utils.END))
+    time_filters.append(utils.TimeFilter(minutes=-15, before_or_after=utils.BEFORE, start_or_end=utils.END))
+    checkout_filter_str = utils.build_time_filter(checkin_filters)
 
     # Send the calendar request
-    checkin_appointments = manager.get_calendar_events(checkin_filter)
-    checkout_appointments = manager.get_calendar_events(checkout_filter)
+    checkin_appointments = manager.get_calendar_events(checkin_filter_str)
+    checkout_appointments = manager.get_calendar_events(checkout_filter_str)
     logging.info("Returning %d checkin and %d checkout appointments", len(checkin_appointments), len(checkout_appointments))
     return checkin_appointments, checkout_appointments
 

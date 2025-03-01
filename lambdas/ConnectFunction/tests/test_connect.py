@@ -5,6 +5,8 @@ import pytest
 from datetime import datetime
 from unittest.mock import MagicMock
 
+# Add the local src directories to the include path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
 # Add the dependencies directory to sys.path to load the proper loneworker_utils module.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../dependencies/src"))
 # Dummy out boto3 so that loneworker_utils loads without trying to use boto3.

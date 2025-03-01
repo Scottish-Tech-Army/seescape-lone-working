@@ -28,4 +28,11 @@ The logic for each of these is as follows.
 
         - Add a line to the appointment body text indicating the time of the call
 
-- For emergency calls, an email is sent to a configured notification address, and a benign coded message is played (in case of eavesdropping).
+- For emergency calls:
+
+    - an email is sent to a configured notification address
+
+    - a benign coded message is played (in case of eavesdropping)
+
+    - if a suitable appointment is found, then the "Emergency" tag is added, and that a line is added to the body indicating that an emergency call was received
+
