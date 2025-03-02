@@ -17,37 +17,35 @@ class DummyManager:
     def __init__(self):
         self.sent_mail = None
 
-    def send_mail(self, to_address, subject, content):
-        self.sent_mail = [to_address, subject, content]
+    def send_mail(self, subject, content):
+        self.sent_mail = [subject, content]
 
 def test_send_warning_mail_checkin():
     manager = DummyManager()
     appointment = {
         'subject': 'Test Meeting',
-        'start': '2023-01-01T10:00:00',
-        'end': '2023-01-01T11:00:00',
+        'start': {'dateTime': '2023-01-01T10:00:00'},
+        'end': {'dateTime': '2023-01-01T11:00:00'},
         'body': {'content': 'Meeting details info.'}
     }
     send_warning_mail(manager, True, appointment)
     assert manager.sent_mail is not None
     expected_subject = "Missed check-in"
-    expected_content = "Check-in was missed for an appointment\r\n  Subject: Test Meeting\r\n  Start time: 2023-01-01T10:00:00\r\n  End time: 2023-01-01T11:00:00\r\n  Meeting details: Meeting details info."
-    assert manager.sent_mail[0] == "nobody@example.com"
-    assert manager.sent_mail[1] == expected_subject
-    assert manager.sent_mail[2] == expected_content
+    expected_content = "Check-in was missed for an appointment\r\n  Subject: Test Meeting\r\n  Start time: 2023-01-01T10:00:00\r\n  End time: 2023-01-01T11:00:00\r\n  Meeting details:\r\nMeeting details info."
+    assert manager.sent_mail[0] == expected_subject
+    assert manager.sent_mail[1] == expected_content
 
 def test_send_warning_mail_checkout():
     manager = DummyManager()
     appointment = {
         'subject': 'Test Meeting 2',
-        'start': '2023-01-02T14:00:00',
-        'end': '2023-01-02T15:00:00',
+        'start': {'dateTime': '2023-01-02T14:00:00'},
+        'end': {'dateTime': '2023-01-02T15:00:00'},
         'body': {'content': 'Checkout details info.'}
     }
     send_warning_mail(manager, False, appointment)
     assert manager.sent_mail is not None
     expected_subject = "Missed check-out"
-    expected_content = "Check-out was missed for an appointment\r\n  Subject: Test Meeting 2\r\n  Start time: 2023-01-02T14:00:00\r\n  End time: 2023-01-02T15:00:00\r\n  Meeting details: Checkout details info."
-    assert manager.sent_mail[0] == "nobody@example.com"
-    assert manager.sent_mail[1] == expected_subject
-    assert manager.sent_mail[2] == expected_content
+    expected_content = "Check-out was missed for an appointment\r\n  Subject: Test Meeting 2\r\n  Start time: 2023-01-02T14:00:00\r\n  End time: 2023-01-02T15:00:00\r\n  Meeting details:\r\nCheckout details info."
+    assert manager.sent_mail[0] == expected_subject
+    assert manager.sent_mail[1] == expected_content

@@ -10,6 +10,9 @@ cd "$(dirname "$0")/.."
 # Name of our dependency layer
 LAYER_NAME=${APP}-lambda-dependencies
 
+# Whenever we push code, we should also refresh config.
+bash scripts/cfg_push.sh
+
 # You might think "surely this could be laid out more rationally". Yes, it could, but
 # commands on the same function need to be separated by a second or two for reasons,
 # and so we jump back and forth between doing things on each function and doing things
@@ -44,7 +47,7 @@ VERSION=$(aws lambda publish-layer-version --layer-name ${LAYER_NAME} --content 
 
 for TARGET in ConnectFunction CheckFunction
 do
-    echo "Updating dependencies for ${TARGET} to ${VERSION}"
+    echo "  Updating dependencies for ${TARGET} to ${VERSION}"
     aws lambda update-function-configuration --function-name ${TARGET} --layers ${VERSION}
 done
 
@@ -52,7 +55,7 @@ done
 echo "Tidy up layers ${LAYER_NUMBERS}"
 for NUMBER in ${LAYER_NUMBERS}
 do
-    echo "Delete layer ${NUMBER}"
+    echo "  Delete layer ${NUMBER}"
     aws lambda delete-layer-version --layer-name ${LAYER_NAME} --version-number ${NUMBER}
 done
 

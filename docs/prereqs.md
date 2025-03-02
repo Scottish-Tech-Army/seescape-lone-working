@@ -72,29 +72,31 @@ Note down their email address and password.
 
 ### Application
 
-You now need to create an *application*. This is the term that Microsoft Entra uses for a logical entity that has access rights, and which therefore can be granted permissions to the email account in question.
+You now need to create and configure an *application*. This is the term that Microsoft Entra uses for a logical entity that has access rights, and which therefore can be granted permissions to the email account in question. All of these operations must be done as a user who has high levels of rights within the Office 365 enterprise in question.
 
-- Go to the [Entra Admin Centre](https://entra.microsoft.com]
+- Create the application
 
-- Select `Applications` on the list on the left of the page, and within that select `App Registrations`.
+    - Go to the [Entra Admin Centre](https://entra.microsoft.com]
 
-- Click the create (plus) button and fill out the form
+    - Select `Applications` on the list on the left of the page, and within that select `App Registrations`.
 
-    - Pick a name (such as `loneworker`). This does not matter, but you'll need to find it again, so pick something memorable.
+    - Click the create (plus) button and fill out the form
 
-    - Who can access this API - just accounts in this organisation.
+        - Pick a name (such as `loneworker`). This does not matter, but you'll need to find it again, so pick something memorable.
 
-    - Do not bother with a `Redirect URI` - leave it blank. Nobody is going to use this interactively.
+        - Who can access this API - select the option for just accounts in this organisation.
 
-- You have an app registration. *If you are using the client credentials model only*, create it some credentials.
+        - Do not bother with a `Redirect URI` - leave it blank. Nobody is going to use this interactively.
 
-    - Save off the `client ID` (shown as "Application (client) ID" in the overview)
+        - Save off the `client ID` (shown as "Application (client) ID" in the overview)
 
-    - Go to `certificates and secrets`. Add a secret and save the value securely. You will never see this value again, so if you lose it, you will have to create a new secret.
+    - You have an app registration. *If you are using the client credentials model only*, create it some credentials.
 
-    - In the `authentication` tab, enable `Allow public flows`
+        - Go to `certificates and secrets`. Add a secret and save the value securely. You will never see this value again, so if you lose it, you will have to create a new secret.
 
-- Now set up permissions under `API permissions`.
+        - In the `authentication` tab, enable `Allow public flows`
+
+- Now set up permissions under `API permissions` for the app registration in question. You need to do this *for all of the permissions required*.
 
     - Click on `Add a permission`
 
@@ -106,13 +108,39 @@ You now need to create an *application*. This is the term that Microsoft Entra u
 
         - Pick `Delegated permissions` for ROPC.
 
-    - Pick the `Calendars.ReadWrite` permission, and select it.
+    - Pick the relevant permission. The permissions you need to have checked are as follows.
+
+        - `Calendars.ReadWrite`
+
+        - `Mail.Send`
+
+        - `Contacts.Read`
+
+    - Accept the choice; the permissions should appear in the list of permissions for the application.
 
     - Next to `Add a permission`, there is a button `Grant admin consent for <your tenant name>`. Click it.
 
+- *Only if you are using ROBC, i.e. a user password", disable MFA for the user. Exactly how to do this varies according to enterprise.
+
+    - For most newly created test enterprises, this requires turning off "Security Defaults" if that is enforcing MFA, or modifying "Conditional Access Policies" if that is enforcing MFA.
+
+        - Go to [Entra Admin Centre](https://entra.microsoft.com]
+
+        - Turn off security defaults
+
+            - Find `Microsoft Entra ID` (search for it)
+
+            - Click `Properties`
+
+            - Click on `Security defaults`, and disable it. Ignore all the warnings about how terrible an idea this is.
+
+    - If you are using "Conditional Access Policies" then change those to exclude your user (which at least means that your org can enforce MFA for all other mailboxes).
+
+        - *No instructions here, since I have not actually done this.*
+
 #### Further client credentials steps
 
-Unfortunately, this grants the application rights to every mailbox in the client credentials case, which is not such a good idea. The solution is to use PowerShell to set up permissions to restrict it to a single mailbox (or more accurately to a group consisting of a single mailbox). Instructions for this process are the following.
+Unfortunately, use of the client credentials model grants the application rights to every mailbox in the enterprise, which is not such a good idea. The solution is to use PowerShell to set up permissions to restrict it to a single mailbox (or more accurately to a group consisting of a single mailbox). Instructions for this process are the following.
 
 - Go to the [Entra Admin Centre](https://entra.microsoft.com]
 
@@ -128,9 +156,9 @@ Unfortunately, this grants the application rights to every mailbox in the client
 
     - Find the group
 
-    - Click on `Members` and add the relevant users
+    - Click on `Members` and add the relevant users (i.e. the lone worker user you are using).
 
-- Install PowerShell. This exists on linux.
+- Install PowerShell to run the commands below; powershell comes with Windows but also exists on linux now.
 
 - Install the relevant module
 
@@ -159,11 +187,9 @@ New-ApplicationAccessPolicy -AppId <YOUR_APP_ID> `
 Test-ApplicationAccessPolicy -Identity <TEST_USER_EMAIL> -AppId <YOUR_APP_ID>
 ~~~
 
-*TODO: Need to test and probably script the above.*
-
 ## Config file
 
-Config files - example is `plw_env.sh`
+Config files - examples are `plw_env.sh`, and `plw.yaml`
 
 *TODO: Some documentation in the example file, needs beefing up*
 
