@@ -17,13 +17,13 @@ def send_warning_mail(manager, checkin, appointment):
         lines = ["Check-out was missed for an appointment"]
 
     lines.append(f"  Subject: {appointment['subject']}")
-    lines.append(f"  Start time: {appointment['start']}")
-    lines.append(f"  End time: {appointment['end']}")
-    lines.append(f"  Meeting details: {appointment['body']['content']}")
+    lines.append(f"  Start time: {appointment['start']['dateTime']}")
+    lines.append(f"  End time: {appointment['end']['dateTime']}")
+    lines.append(f"  Meeting details:")
+    lines.append(f"{appointment['body']['content']}")
     content = "\r\n".join(lines)
 
-    # TODO: make this email address configurable - it was "LoneWorkerNotifications@seescape.org.uk"
-    manager.send_mail("nobody@example.com", subject, content)
+    manager.send_mail(subject, content)
 
 def get_calendar_items(manager):
     """
@@ -47,15 +47,15 @@ def get_calendar_items(manager):
     checkin_filter_str = utils.build_time_filter(checkin_filters)
 
     # Checkout filter finds those that ended between 15 minutes ago, and 75 minutes ago - as above, but end time
-    time_filters = []
-    time_filters.append(utils.TimeFilter(minutes=-75, before_or_after=utils.AFTER, start_or_end=utils.END))
-    time_filters.append(utils.TimeFilter(minutes=-15, before_or_after=utils.BEFORE, start_or_end=utils.END))
-    checkout_filter_str = utils.build_time_filter(checkin_filters)
+    checkout_filters = []
+    checkout_filters.append(utils.TimeFilter(minutes=-75, before_or_after=utils.AFTER, start_or_end=utils.END))
+    checkout_filters.append(utils.TimeFilter(minutes=-15, before_or_after=utils.BEFORE, start_or_end=utils.END))
+    checkout_filter_str = utils.build_time_filter(checkout_filters)
 
     # Send the calendar request
     checkin_appointments = manager.get_calendar_events(checkin_filter_str)
     checkout_appointments = manager.get_calendar_events(checkout_filter_str)
-    logging.info("Returning %d checkin and %d checkout appointments", len(checkin_appointments), len(checkout_appointments))
+    logger.info("Returning %d checkin and %d checkout appointments", len(checkin_appointments), len(checkout_appointments))
     return checkin_appointments, checkout_appointments
 
 def process_appointments(manager, appointments, checkin):
@@ -82,10 +82,10 @@ def process_appointments(manager, appointments, checkin):
             continue
 
 
-        # If we got here, there is a problem
+        # If we got here, there is a problem with this appointment
         subject = appointment['subject']
         logger.warn("Missed checkin or checkout for appointment: %s", subject)
-        send_warning_email(manager, checkin, appointment)
+        send_warning_mail(manager, checkin, appointment)
 
         # We managed to send an email to warn people, so update the appointment
         categories.append(missed_category)

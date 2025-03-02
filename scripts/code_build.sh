@@ -33,9 +33,8 @@ do
 
     if [[ "${RUNTESTS:-}" == "true" ]]; then
         echo "Testing target ${TARGET}"
-        VENV=${TARGET}/venv
-        python -m venv ${VENV}
-        . ${VENV}/bin/activate
+        python -m venv venv
+        . venv/bin/activate
         pip install -r requirements.txt
         # Run tests at this point.
         # TODO: This works but is really rather verbose; better to log to file
