@@ -28,10 +28,15 @@ def getCalendar(manager, action):
         time_filters.append(utils.TimeFilter(minutes=-30, before_or_after=utils.AFTER, start_or_end=utils.END))
         time_filters.append(utils.TimeFilter(minutes=30, before_or_after=utils.BEFORE, start_or_end=utils.END))
     else:
-        # Look for a meeting due to start no later than 90 minutes ago, and to end no sooner than 15 minutes in the past
+        # Look for a meeting due to:
+        # - start after 75 minutes ago
+        # - end before 75 minutes in the future (to avoid meetings that are completely in the future)
+        # - end after 30 minutes ago
+        # This is a meeting that the person could plausibly be in that may not have triggered already
         assert action == KEY_EMERGENCY, "Unexpected action value"
         time_filters.append(utils.TimeFilter(minutes=-75, before_or_after=utils.AFTER, start_or_end=utils.START))
-        time_filters.append(utils.TimeFilter(minutes=15, before_or_after=utils.BEFORE, start_or_end=utils.END))
+        time_filters.append(utils.TimeFilter(minutes=75, before_or_after=utils.BEFORE, start_or_end=utils.END))
+        time_filters.append(utils.TimeFilter(minutes=-30, before_or_after=utils.AFTER, start_or_end=utils.END))
 
     filter = utils.build_time_filter(time_filters)
 
@@ -77,8 +82,10 @@ def process_appointments(manager, appointments, staffid, action):
     # We found the appointment to deal with. If there were multiple, we should give up now.
     # For an emergency, these are not important; nothing to do, and the message will be suppressed.
     if len(matching_appointments) == 0:
+        logger.info("No appointments found for this user")
         return "No matching appointments found - please phone the office"
     if len(matching_appointments) > 1:
+        logger.info("More than one appointment found for this user - count: %d", len(matching_appointments))
         return "Multiple matching appointments found - please phone the office"
 
     appointment = matching_appointments.pop()
@@ -144,10 +151,9 @@ def lambda_handler(event, context):
         message = process_appointments(manager, appointments, staff_id, action)
     elif action == KEY_EMERGENCY:
         logger.info("Emergency action selected")
-        # TODO: recipient was LoneWorkerNotifications@seescape.org.uk; make configurable
-        subject = "Emergency Assistance Required!",
-        content = "Emergency Assistance is required for ID " + staff_id
-        manager.send_email("nobody@example.com", subject, content)
+        subject = "Emergency Assistance Required!"
+        content = "Emergency Assistance is required for ID " + str(staff_id)
+        manager.send_mail(subject, content)
         message = "Message processed" # Deliberately vague, in case the SOS is overheard
 
         logger.info("Emergency mail sent - add emergency tag")

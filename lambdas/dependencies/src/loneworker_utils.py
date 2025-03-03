@@ -1,12 +1,16 @@
 """
 Module containing common utility functions for the loneworker lambda functions.
 """
+# General
 import boto3
+from collections import namedtuple
 from datetime import datetime, timedelta
 import logging
 import os
 import requests
-from collections import namedtuple
+
+# Our own modules.
+import cfg_parser
 
 logger = logging.getLogger(__name__)
 # Do not make the log level DEBUG or it explodes
@@ -80,6 +84,11 @@ class LoneWorkerManager:
         else:
             logger.info("Password not defined - using ROPC flow")
 
+        # More config in the S3 bucket.
+        bucket = os.environ['bucket']
+        logger.info("Reading configuration from S3 bucket %s", bucket)
+        self.cfg = cfg_parser.LambdaConfig(bucket_name=bucket)
+
     def get_token(self):
         """ Get Authentication Code token"""
 
@@ -97,7 +106,10 @@ class LoneWorkerManager:
             logger.info("ROPC flow")
             payload['password'] = self.password
             payload['grant_type'] = 'password'
-            payload['scope'] = 'https://graph.microsoft.com/Calendars.ReadWrite'
+            scopes = ['https://graph.microsoft.com/Calendars.ReadWrite',
+                      'https://graph.microsoft.com/Mail.Send',
+                      'https://graph.microsoft.com/Contacts.Read' ]
+            payload['scope'] = "%20".join(scopes)
         else:
             logger.info("Client credentials flow")
             payload['client_secret'] = self.client_secret
@@ -150,30 +162,33 @@ class LoneWorkerManager:
             logger.error('Calendar patch operation failed: %d, message: %s', response.status_code, response.text)
             raise RuntimeError(f"Calendar patch operation failed: {response.status_code}, message: {response.text}")
 
-    def send_mail(self, recipient, subject, content):
+    def send_mail(self, subject, content):
         """
         Send an email
         """
-        logger.info("Sending email to %s, subject: %s", recipient, subject)
-        message_payload =   {
-                                "message": {
+        recipients = self.cfg.get_email_recipients()
+        logger.info("Sending email to %s, subject: %s", recipients, subject)
+
+        recip_array = []
+        for recipient in recipients:
+            recip_dict = { "emailAddress": { "address": recipient }}
+            recip_array.append(recip_dict)
+
+        message_payload = {
+                            "message": {
                                 "subject": subject,
                                 "body": {
                                     "contentType": "Text",
                                     "content": content
                                 },
-                                "toRecipients": [
-                                    {
-                                        "emailAddress": {
-                                            "address": recipient
-                                        }
-                                    }
-                                ]
+                                "toRecipients": recip_array
                             }
                         }
+        logger.info("Payload: %s", message_payload)
 
         response = requests.post(self.mail_url, headers=self.headers, json=message_payload)
-        if response.status_code != 200:
+        # The Microsoft Graph API sendMail method returns a 202 in most cases.
+        if response.status_code != 200 and  response.status_code != 202:
             logger.error('Error sending mail: %d, message: %s', response.status_code, response.text)
             raise RuntimeError(f"Error sending mail: {response.status_code}, message: {response.text}")
 

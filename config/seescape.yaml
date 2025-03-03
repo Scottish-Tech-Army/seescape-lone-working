@@ -1,0 +1,4 @@
+# This is the configuration that will be loaded and used by the application itself
+# Email recipient list
+email_recipients:
+  - "LoneWorkerNotifications@seescape.org.uk"
