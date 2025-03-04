@@ -4,11 +4,15 @@
 
 All data is stored in a Microsoft 365 (Outlook) calendar of a user specifically configured for the purpose, the "central" user.
 
-- Every lone worker must be assigned a user ID number.
+- Every lone worker must exist in the Office 365 tenant.
 
-- Every appointment that should be checked in and out should be added to the central calendar. The body of the appointment should contain the user identifier in the format "ID:###" where "###" is the user ID number of the worker in question.
+    - This can be either as a personal contact of the central user, or as a user in the tenant.
 
-- When a lone worker checks in or out of a meeting, an Outlook category "Checked-In" or "Checked-Out" respectively is added to the calendar appointment.
+    - The lone worker must have a configured mobile number in E164 format. For example "+447123123456".
+
+- Every appointment that should be checked in and out should be added to the central calendar, and all lone workers who will attend should be invited as attendees.
+
+- When a lone worker checks in or out of a meeting, an Outlook category "Checked-In" or "Checked-Out" respectively is added to the calendar appointment in the central calendar.
 
     - If a lone worker fails to make this call on time, the categories can be manually added (such as if the worker phones up to report that a meeting ended so early they cannot check out yet), or there is an error.
 

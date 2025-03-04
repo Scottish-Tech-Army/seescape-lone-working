@@ -1,5 +1,5 @@
 # This is the configuration that will be loaded and used by the application itself
 # Email recipient list
 email_recipients:
-  - "plw@plwhite.org"
+  - "plw@example.com"
 

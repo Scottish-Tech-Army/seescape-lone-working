@@ -54,6 +54,8 @@ class LoneWorkerManager:
         }
         self.calendar_url = f"https://graph.microsoft.com/v1.0/users/{self.username}/calendar/events"
         self.mail_url = f"https://graph.microsoft.com/v1.0/users/{self.username}/sendMail"
+        self.contacts_url = f"https://graph.microsoft.com/v1.0/users/{self.username}/contacts"
+        self.users_url = f"https://graph.microsoft.com/v1.0/users"
 
     def read_config(self):
         """
@@ -191,6 +193,70 @@ class LoneWorkerManager:
         if response.status_code != 200 and  response.status_code != 202:
             logger.error('Error sending mail: %d, message: %s', response.status_code, response.text)
             raise RuntimeError(f"Error sending mail: {response.status_code}, message: {response.text}")
+
+    def phone_to_email(self, number):
+        """
+        Given a phone number, find all the users and contacts who have that phone number as their
+        mobile number, and return an array of matching addresses.
+        """
+        logger.info("Looking for phone number %s", number)
+
+        addresses = []
+        display_name = "UNKNOWN"
+
+        clauses = [f"mobilePhone eq '{number}'"]
+
+        prefix = "+44"
+        if number.startswith(prefix):
+            alt_number = "0" + number[len(prefix):]
+            logger.info("Also checking for number %s", alt_number)
+            clauses.append(f"mobilePhone eq '{alt_number}'")
+        filter = " or ".join(clauses)
+
+        params = {
+            '$filter': filter
+        }
+
+        logger.info("Finding contacts with number %s", number)
+        response = requests.get(self.contacts_url, headers=self.headers, params=params)
+
+        if response.status_code != 200:
+            logger.error('Contacts request failed: %d, message: %s', response.status_code, response.text)
+            raise RuntimeError(f"Contacts request failed: {response.status_code}, message: {response.text}")
+
+        # Get the contacts from the response
+        contacts = response.json()['value']
+        logger.info("Got %d contacts", len(contacts))
+        for contact in contacts:
+            for emailaddr in contact['emailAddresses']:
+                addresses.append(emailaddr['address'].lower())
+                logger.info("Contact with phone %s has email address %s and name %s", number, addresses[-1], contact['displayName'])
+            if contact['displayName']:
+                display_name = contact['displayName']
+
+        # Now the same for users; we need to add another parameter and another header.
+        logger.info("Finding users with number %s", number)
+        params['$count'] = 'true'
+        headers_with_consistency = self.headers.copy()
+        headers_with_consistency['ConsistencyLevel'] = 'eventual'
+
+        response = requests.get(self.users_url, headers=headers_with_consistency, params=params)
+
+        if response.status_code != 200:
+            logger.error('User list request failed: %d, message: %s', response.status_code, response.text)
+            raise RuntimeError(f"User list request failed: {response.status_code}, message: {response.text}")
+
+        # Get the users from the response
+        users = response.json()['value']
+        logger.info("Got %d users", len(users))
+        for user in users:
+            addresses.append(user['mail'].lower())
+            logger.info("User with phone %s has email address %s and name %s", number, addresses[-1], user['displayName'])
+            if user['displayName']:
+                display_name = user['displayName']
+
+        logger.info("Full list of returned matching addresses: %s", addresses)
+        return addresses, display_name
 
 def get_param(ssm, prefix, name, optional=False):
     try:

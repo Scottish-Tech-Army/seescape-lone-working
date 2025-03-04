@@ -4,7 +4,7 @@ This lambda handles user input, updating the calendar as appropriate.
 
 It is called with two arguments.
 
-- A user identifier. *TODO: update when this becomes automatically provided*
+- A phone number in E164 format
 
 - A key press from the user, which can take the following values.
 
@@ -18,7 +18,7 @@ The logic for each of these is as follows.
 
 - For check in or check out:
 
-    - Find the relevant appointment, which must have the correct user ID and a time (start time for check in, end time for check out) within a window from 30 minutes ago to 30 minutes in the future.
+    - Find the relevant appointment, which must have the correct phone number (i.e. attendee with that mobile number) and a time (start time for check in, end time for check out) within a window from 30 minutes ago to 30 minutes in the future.
 
     - If no such appointment or multiple such appointments exist, play an error message to the user asking them to call the office to resolve.
 

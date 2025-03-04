@@ -116,6 +116,8 @@ You now need to create and configure an *application*. This is the term that Mic
 
         - `Contacts.Read`
 
+        - `User.Read.All`
+
     - Accept the choice; the permissions should appear in the list of permissions for the application.
 
     - Next to `Add a permission`, there is a button `Grant admin consent for <your tenant name>`. Click it.
