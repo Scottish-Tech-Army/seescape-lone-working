@@ -24,79 +24,95 @@ def dummy_manager():
     manager.send_mail = MagicMock()
     return manager
 
-def make_appointment(appointment_id="1", subject="Test Appointment", categories=None, body_preview=""):
+def make_appointment(appointment_id="1", subject="Test Appointment", categories=None, body_preview="", attendee_mails=[]):
     if categories is None:
         categories = []
+    attendees = []
+    for mail in attendee_mails:
+        attendee = {'emailAddress': {'address' : mail}}
+        attendees.append(attendee)
+
     return {
         "id": appointment_id,
         "subject": subject,
         "categories": categories,
+        "attendees": attendees,
         "bodyPreview": body_preview,
         "body": {"content": "Details"}
     }
 
 def test_process_appointments_check_in(dummy_manager):
+    addresses = ["billy@example.com"]
     appointments = [
-        make_appointment(categories=[], body_preview="ID:123")
+        make_appointment(categories=[], attendee_mails=addresses)
     ]
-    result = connect.process_appointments(dummy_manager, appointments, "123", connect.KEY_CHECK_IN)
+    result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_IN)
     assert result == "Your appointment has been checked in"
     dummy_manager.patch_calendar_event.assert_called_once()
     assert "Checked-In" in appointments[0]["categories"]
 
 def test_process_appointments_check_out(dummy_manager):
+    addresses = ["billy@example.com", "nomatch@example.com"]
     appointments = [
-        make_appointment(categories=["Checked-In"], body_preview="ID:123")
+        make_appointment(categories=["Checked-In"], attendee_mails=addresses)
     ]
-    result = connect.process_appointments(dummy_manager, appointments, "123", connect.KEY_CHECK_OUT)
+    addresses = ["billy@example.com", "jim@example.com"]
+    result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_OUT)
     assert result == "Your appointment has been checked out"
     dummy_manager.patch_calendar_event.assert_called_once()
     assert "Checked-Out" in appointments[0]["categories"]
 
 def test_process_appointments_no_matching_appointments(dummy_manager):
+    addresses = ["billy@example.com"]
     appointments = [
-        make_appointment(categories=[], body_preview="ID:456")
+        make_appointment(categories=[],  attendee_mails=addresses)
     ]
-    result = connect.process_appointments(dummy_manager, appointments, "123", connect.KEY_CHECK_IN)
+    addresses = ["fred@example.com"]
+    result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_IN)
     assert result == "No matching appointments found - please phone the office"
     assert not dummy_manager.patch_calendar_event.called
 
 def test_process_appointments_multiple_matching_appointments(dummy_manager):
     appointments = [
-        make_appointment(categories=[], body_preview="ID:123"),
-        make_appointment(categories=[], body_preview="ID:123")
+        make_appointment(categories=[], attendee_mails=["jim@example.com", "BILLY@example.com"]),
+        make_appointment(categories=[], attendee_mails=["billy@example.com"])
     ]
-    result = connect.process_appointments(dummy_manager, appointments, "123", connect.KEY_CHECK_IN)
+    addresses = ["billy@example.com"]
+    result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_IN)
     assert result == "Multiple matching appointments found - please phone the office"
     assert not dummy_manager.patch_calendar_event.called
 
 def test_process_appointments_already_checked_in(dummy_manager):
     appointments = [
-        make_appointment(categories=["Checked-In"], body_preview="ID:123"),
-        make_appointment(categories=[], body_preview="ID:456")
+        make_appointment(categories=["Checked-In"], attendee_mails=["jim@example.com", "BILLY@example.com"]),
+        make_appointment(categories=[], attendee_mails=["sue@example.com"])
     ]
-    result = connect.process_appointments(dummy_manager, appointments, "123", connect.KEY_CHECK_IN)
+    addresses = ["billy@example.com"]
+    result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_IN)
     assert result == "Your appointment has already been checked in"
     dummy_manager.patch_calendar_event.assert_called_once()
     assert "Checked-In" in appointments[0]["categories"]
 
 def test_process_appointments_already_checked_out(dummy_manager):
+    addresses = ["billy@example.com"]
     appointments = [
-        make_appointment(categories=["Checked-Out", "Checked-In"], body_preview="ID:123")
+        make_appointment(categories=["Checked-Out", "Checked-In"], attendee_mails=addresses)
     ]
-    result = connect.process_appointments(dummy_manager, appointments, "123", connect.KEY_CHECK_OUT)
+    result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_OUT)
     assert result == "Your appointment has already been checked out"
     dummy_manager.patch_calendar_event.assert_called_once()
     assert "Checked-Out" in appointments[0]["categories"]
 
 def test_process_appointments_check_out_no_checkin(dummy_manager):
+    addresses = ["billy@example.com"]
     appointments = [
-        make_appointment(categories=["Random stuff"], body_preview="ID:456")
+        make_appointment(categories=["Random stuff"], attendee_mails=addresses)
     ]
-    result = connect.process_appointments(dummy_manager, appointments, "123", connect.KEY_CHECK_OUT)
+    result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_OUT)
     assert result == "No matching appointments found - please phone the office"
     dummy_manager.patch_calendar_event.assert_not_called()
 
 def test_process_appointments_invalid_action(dummy_manager):
+    addresses = ["billy@example.com"]
     with pytest.raises(AssertionError):
-        connect.process_appointments(dummy_manager, [], "123", "invalid_action")
+        connect.process_appointments(dummy_manager, [], addresses, "invalid_action")
