@@ -6,12 +6,13 @@ echo "App: ${APP}"
 
 # This script must run from the parent directory of the scripts directory
 cd "$(dirname "$0")/.."
+source scripts/utils.sh
 
 INSTANCE_ALIAS="${APP}-${ENVIRONMENT}"
 FLOW_NAME="${APP} flow"
 
 # This is really just ugly.
-aws connect list-instances 
+aws connect list-instances
 INSTANCE=$(aws connect list-instances --query "InstanceSummaryList[?InstanceAlias=='${INSTANCE_ALIAS}'].Id" --output text)
 echo "Found instance of alias ${INSTANCE_ALIAS}, ID ${INSTANCE}"
 
