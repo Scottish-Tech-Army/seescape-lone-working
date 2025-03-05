@@ -56,7 +56,7 @@ Resources:
               Action:
                 - "s3:GetObject"
               Resource:
-                - !Sub "arn:aws:s3:::${bucketName}/*"
+                - Fn::Sub: arn:aws:s3:::${bucketName}/*
       ManagedPolicyArns:
       - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Path: /
@@ -78,6 +78,16 @@ Resources:
     Metadata:
       BuildMethod: python3.12
       SamResourceId: DependancyLayer
+  ConnectLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/ConnectFunction
+      RetentionInDays: 14
+  CheckLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/CheckFunction
+      RetentionInDays: 14
   ConnectFunction:
     Type: AWS::Serverless::Function
     Properties:
