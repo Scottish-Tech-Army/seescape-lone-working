@@ -67,12 +67,15 @@ class LoneWorkerManager:
         # Read configuration from the environment
         ssm = boto3.client('ssm')
         ssm_prefix = os.environ['ssm_prefix']
-        variables = {}
-        self.client_id = get_param(ssm, ssm_prefix, "clientid")
-        self.client_secret = get_param(ssm, ssm_prefix, "clientsecret", optional=True)
-        self.username = get_param(ssm, ssm_prefix, "emailuser")
-        self.password = get_param(ssm, ssm_prefix, "emailpass", optional=True)
-        self.tenant = get_param(ssm, ssm_prefix, "tenant")
+        mand_names = ["clientid", "emailuser", "tenant"]
+        optional_names = ["clientsecret", "emailpass"]
+        values = get_params(ssm, ssm_prefix, mand_names=mand_names, optional_names=optional_names)
+
+        self.client_id = values["clientid"]
+        self.client_secret = values["clientsecret"]
+        self.username = values["emailuser"]
+        self.password = values["emailpass"]
+        self.tenant = values["tenant"]
 
         # Trace some things.
         logger.info("Tenant: %s, Client ID: %s, username: %s", self.tenant, self.client_id, self.username)
@@ -258,18 +261,49 @@ class LoneWorkerManager:
         logger.info("Full list of returned matching addresses: %s", addresses)
         return addresses, display_name
 
-def get_param(ssm, prefix, name, optional=False):
-    try:
-        param = f"/{prefix}/{name}"
-        logger.debug("Getting parameter %s", param)
-        return ssm.get_parameter(Name=param, WithDecryption=True)['Parameter']['Value']
-    except ssm.exceptions.ParameterNotFound:
-        if optional:
-            return None
-        else:
-            logger.error("Missing value for non-optional parameter %s", param)
-            raise ValueError(f"Parameter {prefix}/{name} not found")
+def get_params(ssm, prefix, mand_names, optional_names=[]):
+    """
+    Retrieves multiple parameters from AWS SSM Parameter Store using get_parameters_by_path.
 
+    Args:
+        ssm (boto3.client): The boto3 SSM client.
+        prefix (str): The directory prefix (for example, "loneworker" to work with parameters like /loneworker/param).
+        mand_names (list): A list of mandatory parameter names (without the prefix) to retrieve.
+        optional_names (list): Another list of optional parameter names
+    Returns:
+        dict: A dictionary mapping each parameter name (without the prefix) to its value.
+    Raises:
+        ValueError: If a required parameter is not found.
+    """
+    # Ensure the prefix has a leading and trailing slash for consistency.
+    path_prefix = "/" + prefix.strip("/") + "/"
+    logger.debug("Retrieving parameters from path: %s", path_prefix)
+    names = mand_names + optional_names
+
+    # Use a paginator to handle potentially multiple pages of results.
+    paginator = ssm.get_paginator("get_parameters_by_path")
+    retrieved = {}
+
+    for page in paginator.paginate(Path=path_prefix, Recursive=False, WithDecryption=True):
+        for param in page.get("Parameters", []):
+            full_name = param.get('Name')
+            # Remove the prefix from the full parameter name to get the key.
+            key = full_name[len(path_prefix):] if full_name.startswith(path_prefix) else full_name
+            retrieved[key] = param.get('Value')
+
+    # Build the results for only the requested names.
+    results = {}
+    for name in names:
+        if name in retrieved:
+            results[name] = retrieved[name]
+        else:
+            if name in mand_names:
+                logger.error("Missing value for non-optional parameter %s%s", path_prefix, name)
+                raise ValueError(f"Parameter {path_prefix}{name} not found")
+            else:
+                results[name] = None
+
+    return results
 
 TimeFilter = namedtuple('TimeFilter', ['minutes', 'before_or_after', 'start_or_end'])
 

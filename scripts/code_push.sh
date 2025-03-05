@@ -59,8 +59,11 @@ do
     aws lambda delete-layer-version --layer-name ${LAYER_NAME} --version-number ${NUMBER}
 done
 
-echo "TODO: REINSTATE THIS, BROKEN BY QUOTA LIMITATIONS"
-exit 0
+# If CONCURRENCY is 0, then drop out
+if [ "${CONCURRENCY}" -eq 0 ]; then
+    echo "CONCURRENCY is 0, stopping without setting up concurrency."
+    exit 0
+fi
 
 # Now set up concurrency for the ConnectFunction. We do not care about CheckFunction (that is async)
 echo "Update concurrency for ConnectFunction (only)"
@@ -76,4 +79,4 @@ VERSION=$(aws lambda publish-version --function-name ConnectFunction | jq ".Vers
 echo "  published version ${VERSION}"
 aws lambda put-provisioned-concurrency-config --function-name ConnectFunction \
   --qualifier ${VERSION} \
-  --provisioned-concurrent-executions 1
+  --provisioned-concurrent-executions ${CONCURRENCY}
