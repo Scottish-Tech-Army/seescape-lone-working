@@ -44,7 +44,7 @@ def getCalendar(manager, action):
     appointments = manager.get_calendar_events(filter)
     return appointments
 
-def process_appointments(manager, appointments, staffid, action):
+def process_appointments(manager, appointments, addresses, action):
     """
     Process Appointments
 
@@ -56,8 +56,7 @@ def process_appointments(manager, appointments, staffid, action):
 
     It updates appointments as necessary, and returns a string indicating what to do.
     """
-    logger.info("Processing appointments list for ID %s, action %s", staffid, action)
-    id_string = f"ID:{staffid}"
+    logger.info("Processing appointments list for action %s, addresses %s", action, addresses)
 
     # Caller should check this, but being defensive.
     assert action == KEY_CHECK_IN or action == KEY_CHECK_OUT or action == KEY_EMERGENCY, "Unexpected action value"
@@ -65,10 +64,20 @@ def process_appointments(manager, appointments, staffid, action):
     # We first ditch any appointments that do not match the staff ID.
     matching_appointments = []
     for appointment in appointments:
-        if not id_string in appointment['bodyPreview']:
-            # Does not match the ID - ignore it.
-            logger.debug("Ignoring appointment %s", appointment['subject'])
+        match = False
+        for attendee in appointment['attendees']:
+            address = attendee['emailAddress']['address'].lower()
+
+            if address in addresses:
+                logger.info("Match on address %s", address)
+                match = True
+                # No need to check any more attendees
+                continue
+
+        if not match:
+            logger.debug("Ignoring appointment %s as no address match", appointment['subject'])
             continue
+
         if action == KEY_CHECK_IN and utils.CHECKED_OUT in appointment['categories']:
             # Cannot check into an appointment to which you have checked out
             logger.info("Appointment checked out - try the next one: %s", appointment['subject'])
@@ -131,37 +140,55 @@ def process_appointments(manager, appointments, staffid, action):
 
 def lambda_handler(event, context):
     """ Lambda Handler"""
-
+    logger.info("Received call to handle")
     manager = utils.LoneWorkerManager()
 
-    staff_id = event['Details']['ContactData']['Attributes']['idnumber']
+    #staff_id = event['Details']['ContactData']['Attributes']['idnumber']
     action = event['Details']['Parameters']['buttonpressed']
 
-    headers = {
-        'Authorization': 'Bearer ' + manager.token,
-        'Content-Type': 'application/json',
-        'Prefer': 'outlook.timezone="Europe/London"'
-    }
+    try:
+        phone_number = event['Details']['ContactData']['CustomerEndpoint']['Address']
+    except KeyError as e:
+        logger.error("Phone number not found")
+        phone_number = None
+
+    if phone_number:
+        logger.info("Get values for phone number %s", phone_number)
+        addresses, display_name = manager.phone_to_email(phone_number)
+    else:
+        phone_number = "UNKNOWN"
+        addresses = []
+        displayName = "UNKNOWN"
+
 
     message = ""
 
     if action == KEY_CHECK_IN or action == KEY_CHECK_OUT:
-        logger.info("Check-in or out action selected")
-        appointments = getCalendar(manager, action)
-        message = process_appointments(manager, appointments, staff_id, action)
+        if addresses:
+            logger.info("Check-in or out action selected")
+            appointments = getCalendar(manager, action)
+            message = process_appointments(manager, appointments, addresses, action)
+        else:
+            logger.info("Giving up - no phone number or no matching addresses")
+            message = "Unable to find phone number or address"
     elif action == KEY_EMERGENCY:
         logger.info("Emergency action selected")
         subject = "Emergency Assistance Required!"
-        content = "Emergency Assistance is required for ID " + str(staff_id)
+        lines = []
+        lines.append("Emergency call received")
+        lines.append("")
+        lines.append(f" Calling number      : {phone_number}")
+        lines.append(f" Caller name if known: {display_name}")
+        content = "\r\n".join(lines)
         manager.send_mail(subject, content)
         message = "Message processed" # Deliberately vague, in case the SOS is overheard
 
-        logger.info("Emergency mail sent - add emergency tag")
-        appointments = getCalendar(manager, action)
-        # We do not use the message we get back here except to log it; we do try to update the meeting, but cannot do more than that.
-        unused_message = process_appointments(manager, appointments, staff_id, action)
-
-        logger.info("Got message from appointments: %s", unused_message)
+        if addresses:
+            logger.info("Emergency mail sent - add emergency tag to meeting if we can find it")
+            appointments = getCalendar(manager, action)
+            # We do not use the message we get back here except to log it; we do try to update the meeting, but cannot do more than that.
+            unused_message = process_appointments(manager, appointments, addresses, action)
+            logger.info("Got message from appointments: %s", unused_message)
     else:
         logger.error("Invalid action selected")
         raise ValueError(f"Invalid action selected: {action}")
