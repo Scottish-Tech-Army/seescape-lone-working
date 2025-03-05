@@ -42,6 +42,7 @@ Resources:
           Version: '2012-10-17'
           Statement:
           - Action:
+            - ssm:GetParametersByPath
             - ssm:GetParameter
             Effect: Allow
             Resource:
@@ -88,6 +89,7 @@ Resources:
       Layers:
       - Ref: DependancyLayer
       Timeout: 30
+      MemorySize: 1024
       Environment:
         Variables:
           TZ: Europe/London
@@ -112,6 +114,7 @@ Resources:
       Layers:
       - Ref: DependancyLayer
       Timeout: 30
+      MemorySize: 256
       Environment:
         Variables:
           TZ: Europe/London
