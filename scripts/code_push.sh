@@ -26,7 +26,7 @@ done
 
 if ! aws lambda get-function --function-name ConnectFunction > /dev/null 2>&1
 then
-    echo "ConnectFunction does not exist - dropping out"
+    echo "Functions appear not to have been created yet - OK on first run. Dropping out"
     exit 0
 fi
 
