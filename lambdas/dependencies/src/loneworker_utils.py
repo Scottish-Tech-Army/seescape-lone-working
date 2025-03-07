@@ -36,12 +36,15 @@ MISSED_CHECK_OUT = "Missed-Check-Out"
 EMERGENCY = "Emergency"
 
 class LoneWorkerManager:
-    def __init__(self):
+    def __init__(self, app_type):
         """
         Init method just reads the configuration settings.
         """
-        logger.info("Get configuration")
+        logger.info("Get configuration for app %s", app_type)
         self.read_config()
+
+        logger.info("Initialise metrics structures")
+        self.init_metrics(app_type)
 
         logger.info("Get auth token")
         self.get_token()
@@ -61,15 +64,15 @@ class LoneWorkerManager:
         """
         Read the configuration settings.
         """
-        ssm_prefix = os.environ['ssm_prefix']
-        logger.info("Reading configuration from %s", ssm_prefix)
+        self.app_prefix  = os.environ['ssm_prefix']
+        logger.info("Reading configuration from %s", self.app_prefix)
 
         # Read configuration from the environment
         ssm = boto3.client('ssm')
-        ssm_prefix = os.environ['ssm_prefix']
+        self.app_prefix = os.environ['ssm_prefix']
         mand_names = ["clientid", "emailuser", "tenant"]
         optional_names = ["clientsecret", "emailpass"]
-        values = get_params(ssm, ssm_prefix, mand_names=mand_names, optional_names=optional_names)
+        values = get_params(ssm, self.app_prefix, mand_names=mand_names, optional_names=optional_names)
 
         self.client_id = values["clientid"]
         self.client_secret = values["clientsecret"]
@@ -260,6 +263,54 @@ class LoneWorkerManager:
 
         logger.info("Full list of returned matching addresses: %s", addresses)
         return addresses, display_name
+
+    def init_metrics(self, app_type):
+        # Set up metrics; we only do this when we need to actually report them
+        self.cloudwatch = boto3.client('cloudwatch')
+        self.metrics_namespace = f"{self.app_prefix}/{app_type}"
+        self.metrics = {}
+
+    def increment_counter(self, name, increment=1):
+        """
+        Increment the supplied metric name by that amount
+        """
+        if name in self.metrics:
+            self.metrics[name] += increment
+        else:
+            self.metrics[name] = increment
+
+    def emit_metrics(self):
+        """
+        Emit metrics that have already been stored.
+        """
+        logging.info("Emit metrics array: %s", self.metrics)
+        # TODO: have a panic about timezones
+        timestamp = datetime.now()
+        if not self.metrics:
+            logging.info("No metrics in array - drop out")
+            return
+
+        metric_data = []
+        for key, value in self.metrics.items():
+            metric_data.append({
+                'MetricName': key,
+                'Timestamp': timestamp,
+                'Value': value,
+                'Unit': 'Count'
+            })
+
+        logging.info("Putting %d metrics, %s", len(metric_data), metric_data)
+        self.cloudwatch.put_metric_data(
+            Namespace=self.metrics_namespace,
+            MetricData=metric_data
+        )
+
+        # This is a pretty useless trace statement EXCEPT that it allows us to track the
+        # time of the AWS call
+        logging.info("Metrics emission complete")
+
+        # Clear the supplied dict in case we call emit_metrics twice.
+        self.metrics.clear()
 
 def get_params(ssm, prefix, mand_names, optional_names=[]):
     """

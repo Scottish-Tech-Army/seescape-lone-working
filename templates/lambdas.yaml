@@ -48,6 +48,19 @@ Resources:
             Resource:
               Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:*
       - PolicyName:
+          Fn::Sub: ${app}-metrics-policy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Action:
+            - cloudwatch:PutMetricData
+            Effect: Allow
+            Resource: "*"
+            Condition:
+              StringLike:
+                cloudwatch:namespace:
+                  Fn::Sub: "${app}/*"
+      - PolicyName:
           Fn::Sub: ${app}-S3-access-policy
         PolicyDocument:
           Version: "2012-10-17"

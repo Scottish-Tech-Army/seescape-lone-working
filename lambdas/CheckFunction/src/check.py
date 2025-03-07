@@ -2,6 +2,10 @@ import requests
 from datetime import datetime, timedelta
 import loneworker_utils as utils
 
+METRIC_MEETINGS_CHECKED = "MeetingsChecked"
+METRIC_CHECKINS_MISSED = "CheckinsMissed"
+METRIC_CHECKOUTS_MISSED = "CheckoutsMissed"
+
 logger = utils.get_logger()
 
 def send_warning_mail(manager, checkin, appointment):
@@ -65,9 +69,14 @@ def process_appointments(manager, appointments, checkin):
     if checkin:
         target_category = utils.CHECKED_IN
         missed_category = utils.MISSED_CHECK_IN
+        metric = METRIC_CHECKINS_MISSED
     else:
         target_category = utils.CHECKED_OUT
         missed_category = utils.MISSED_CHECK_OUT
+        metric = METRIC_CHECKOUTS_MISSED
+
+    # Update metrics to report how many metrics we have checked.
+    manager.increment_counter(METRIC_MEETINGS_CHECKED, len(appointments))
 
     for appointment in appointments:
         categories = appointment['categories']
@@ -81,11 +90,13 @@ def process_appointments(manager, appointments, checkin):
             # We should not flag a missed checkout if we flagged a missed checkin
             continue
 
-
         # If we got here, there is a problem with this appointment
         subject = appointment['subject']
         logger.warn("Missed checkin or checkout for appointment: %s", subject)
         send_warning_mail(manager, checkin, appointment)
+
+        # Update metrics for this event.
+        manager.increment_counter(metric)
 
         # We managed to send an email to warn people, so update the appointment
         categories.append(missed_category)
@@ -98,7 +109,7 @@ def process_appointments(manager, appointments, checkin):
 
 def lambda_handler(event, context):
     """ Lambda Handler"""
-    manager = utils.LoneWorkerManager()
+    manager = utils.LoneWorkerManager("Check")
 
     # Read the relevant appointments from the calendar
     checkin_appointments, checkout_appointments = get_calendar_items(manager)
@@ -106,3 +117,13 @@ def lambda_handler(event, context):
     # Process the appointments as required
     process_appointments(manager, checkin_appointments, checkin=True)
     process_appointments(manager, checkout_appointments, checkin=False)
+
+    # Report back metrics
+    manager.emit_metrics()
+
+    message = "Check completed"
+    resultMap = {
+            "message" : message
+            }
+
+    return resultMap
