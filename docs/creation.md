@@ -75,6 +75,14 @@ Now go through each of the following steps.
 
 *TODO: This does not work - there is some kind of quota issue. The workaround appears to be to request a quota increase.*
 
+### Set up dashboards
+
+This could be automated better, but a basic dashboard can be created as follows.
+
+~~~bash
+aws cloudwatch put-dashboard --dashboard-name "loneworker" --dashboard-body file://resources/dashboard.json
+~~~
+
 ## Validation
 
 *TODO: Some level of test and validation*

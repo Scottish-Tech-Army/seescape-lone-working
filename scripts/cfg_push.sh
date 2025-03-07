@@ -6,6 +6,7 @@ echo "App: ${APP}"
 
 # This script must run from the parent directory of the scripts directory
 cd "$(dirname "$0")/.."
+source scripts/utils.sh
 
 CFG_FULL_PATH="config/${CONFIG_FILE}"
 

@@ -6,6 +6,7 @@ echo "App: ${APP}"
 
 # This script must run from the parent directory of the scripts directory
 cd "$(dirname "$0")/.."
+source scripts/utils.sh
 
 # Name of our dependency layer
 LAYER_NAME=${APP}-lambda-dependencies
@@ -25,7 +26,7 @@ done
 
 if ! aws lambda get-function --function-name ConnectFunction > /dev/null 2>&1
 then
-    echo "ConnectFunction does not exist - dropping out"
+    echo "Functions appear not to have been created yet - OK on first run. Dropping out"
     exit 0
 fi
 

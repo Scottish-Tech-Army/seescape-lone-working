@@ -66,9 +66,21 @@ If none of these works, you can just bite the bullet and create a [new enterpris
 
 ### Account
 
-You'll need a user in your organisation with email to use. You can either use an existing user (if this is a test tenant - do not use some real person's account!), or create a new user in the [Microsoft admin centre](https://admin.microsoft.com/Adminportal/Home#/homepage).
+You'll need a mailbox in your organisation that can be accessed by staff managing the application and appointments. The easiest type of account to use is a [shared mailbox](https://learn.microsoft.com/en-us/microsoft-365/admin/email/about-shared-mailboxes). To create such an account, perform the following steps.
 
-Note down their email address and password.
+- As an administrator, log into the [Microsoft admin centre](https://admin.microsoft.com/Adminportal/Home#/homepage).
+
+- Select the `Shared mailboxes` option, which is in the `Teams & Groups` section the left hand bar.
+
+- Click `Add a shared mailbox`, and assign it an email address and a name.
+
+- After a little while (up to a minute or so), the new shared mailbox appears in the list of shared mailboxes. Click on it.
+
+    - A window of options will pop up. Click on the link `Read and manage permissions`
+
+    - Add the users in your organisation that you want to be able to view and manage the shared calendar.
+
+Note down the shared mailbox email address.
 
 ### Application
 
@@ -144,13 +156,17 @@ You now need to create and configure an *application*. This is the term that Mic
 
 Unfortunately, use of the client credentials model grants the application rights to every mailbox in the enterprise, which is not such a good idea. The solution is to use PowerShell to set up permissions to restrict it to a single mailbox (or more accurately to a group consisting of a single mailbox). Instructions for this process are the following.
 
+*I have tested that these steps work in powershell, but am not convinced they do anything. This whole section probably needs to be moved.*
+
 - Go to the [Entra Admin Centre](https://entra.microsoft.com]
 
 - Create a group.
 
     - Navigate to `Groups` on the left
 
-    - Create a new group, of type `Security`, which we will assume is called `loneworker`.
+    - Create a new group, of type `Mail-Enabled Security`, which we will assume is called `loneworker`.
+
+    - Give it an email, one that does not clash with anything else.
 
     - Description I picked was "Users whose accounts the loneworker app can access"
 
@@ -159,6 +175,8 @@ Unfortunately, use of the client credentials model grants the application rights
     - Find the group
 
     - Click on `Members` and add the relevant users (i.e. the lone worker user you are using).
+
+- Find and store the object ID GUID for the security group.
 
 - Install PowerShell to run the commands below; powershell comes with Windows but also exists on linux now.
 
@@ -178,7 +196,7 @@ Connect-ExchangeOnline -UserPrincipalName <YOUR_EMAIL>
 
 ~~~powershell
 New-ApplicationAccessPolicy -AppId <YOUR_APP_ID> `
-  -PolicyScopeGroupId "loneworker" `
+  -PolicyScopeGroupId <THAT_GUID_YOU_SAVED> `
   -AccessRight RestrictAccess `
   -Description "Restrict app access to allowed mailboxes only"
 ~~~

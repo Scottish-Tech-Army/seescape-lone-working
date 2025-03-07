@@ -8,6 +8,14 @@ KEY_CHECK_IN="1"
 KEY_CHECK_OUT="2"
 KEY_EMERGENCY="3"
 
+METRIC_CHECKINS = "Checkins"
+METRIC_CHECKOUTS = "Checkouts"
+METRIC_EMERGENCY = "Emergencies"
+METRIC_UNKNOWN_CALLER = "UnknownCaller"
+METRIC_APPT_NOT_FOUND = "NoMatchingAppointment"
+METRIC_DUPLICATE_CALL = "DuplicateCall"
+METRIC_SUCCESS = "Success"
+
 logger = utils.get_logger()
 
 def getCalendar(manager, action):
@@ -23,7 +31,7 @@ def getCalendar(manager, action):
         # Look for a meeting due to start between 30 minutes ago and 30 minutes in the future.
         time_filters.append(utils.TimeFilter(minutes=-30, before_or_after=utils.AFTER, start_or_end=utils.START))
         time_filters.append(utils.TimeFilter(minutes=30, before_or_after=utils.BEFORE, start_or_end=utils.START))
-    elif action == KEY_CHECK_IN:
+    elif action == KEY_CHECK_OUT:
         # Look for a meeting due to end between 30 minutes ago and 30 minutes in the future.
         time_filters.append(utils.TimeFilter(minutes=-30, before_or_after=utils.AFTER, start_or_end=utils.END))
         time_filters.append(utils.TimeFilter(minutes=30, before_or_after=utils.BEFORE, start_or_end=utils.END))
@@ -61,6 +69,9 @@ def process_appointments(manager, appointments, addresses, action):
     # Caller should check this, but being defensive.
     assert action == KEY_CHECK_IN or action == KEY_CHECK_OUT or action == KEY_EMERGENCY, "Unexpected action value"
 
+    # Assume error to start with
+    success = False
+
     # We first ditch any appointments that do not match the staff ID.
     matching_appointments = []
     for appointment in appointments:
@@ -92,10 +103,20 @@ def process_appointments(manager, appointments, addresses, action):
     # For an emergency, these are not important; nothing to do, and the message will be suppressed.
     if len(matching_appointments) == 0:
         logger.info("No appointments found for this user")
-        return "No matching appointments found - please phone the office"
+        if action != KEY_EMERGENCY:
+            manager.increment_counter(METRIC_APPT_NOT_FOUND)
+        else:
+            # This is considered a success for an emergency call
+            success = True
+        return success, "No matching appointments found - please phone the office"
     if len(matching_appointments) > 1:
         logger.info("More than one appointment found for this user - count: %d", len(matching_appointments))
-        return "Multiple matching appointments found - please phone the office"
+        if action != KEY_EMERGENCY:
+            manager.increment_counter(METRIC_APPT_NOT_FOUND)
+        else:
+            # This is considered a success for an emergency call
+            success = True
+        return success, "Multiple matching appointments found - please phone the office"
 
     appointment = matching_appointments.pop()
 
@@ -121,8 +142,10 @@ def process_appointments(manager, appointments, addresses, action):
         logger.info('Appointment already has %s category', target_category)
         if action == KEY_CHECK_IN:
             message = "Your appointment has already been checked in"
+            manager.increment_counter(METRIC_DUPLICATE_CALL)
         elif action == KEY_CHECK_OUT:
             message = "Your appointment has already been checked out"
+            manager.increment_counter(METRIC_DUPLICATE_CALL)
         else:
             message = "Emergency already registered"
     else:
@@ -135,16 +158,29 @@ def process_appointments(manager, appointments, addresses, action):
     changes['body'] = body
     manager.patch_calendar_event(appointment['id'], changes)
     logger.info("Appointment updated successfully")
+    # If we got here, we consider it a success
+    success = True
 
-    return message
+    return success, message
 
 def lambda_handler(event, context):
     """ Lambda Handler"""
     logger.info("Received call to handle")
-    manager = utils.LoneWorkerManager()
+    manager = utils.LoneWorkerManager("Connect")
 
-    #staff_id = event['Details']['ContactData']['Attributes']['idnumber']
     action = event['Details']['Parameters']['buttonpressed']
+    if action == KEY_CHECK_IN:
+        logger.info("Check in")
+        manager.increment_counter(METRIC_CHECKINS)
+    elif action == KEY_CHECK_OUT:
+        logger.info("Check out")
+        manager.increment_counter(METRIC_CHECKOUTS)
+    elif action == KEY_EMERGENCY:
+        logger.info("Emergency")
+        manager.increment_counter(METRIC_EMERGENCY)
+    else:
+        logger.error("Invalid action selected")
+        raise ValueError(f"Invalid action selected: {action}")
 
     try:
         phone_number = event['Details']['ContactData']['CustomerEndpoint']['Address']
@@ -159,7 +195,7 @@ def lambda_handler(event, context):
         phone_number = "UNKNOWN"
         addresses = []
         displayName = "UNKNOWN"
-
+        manager.increment_counter(METRIC_UNKNOWN_CALLER)
 
     message = ""
 
@@ -167,11 +203,14 @@ def lambda_handler(event, context):
         if addresses:
             logger.info("Check-in or out action selected")
             appointments = getCalendar(manager, action)
-            message = process_appointments(manager, appointments, addresses, action)
+            success, message = process_appointments(manager, appointments, addresses, action)
+            if success:
+                manager.increment_counter(METRIC_SUCCESS)
+
         else:
             logger.info("Giving up - no phone number or no matching addresses")
             message = "Unable to find phone number or address"
-    elif action == KEY_EMERGENCY:
+    else:
         logger.info("Emergency action selected")
         subject = "Emergency Assistance Required!"
         lines = []
@@ -189,9 +228,9 @@ def lambda_handler(event, context):
             # We do not use the message we get back here except to log it; we do try to update the meeting, but cannot do more than that.
             unused_message = process_appointments(manager, appointments, addresses, action)
             logger.info("Got message from appointments: %s", unused_message)
-    else:
-        logger.error("Invalid action selected")
-        raise ValueError(f"Invalid action selected: {action}")
+
+    # Report back metrics
+    manager.emit_metrics()
 
     resultMap = {
             "message" : message

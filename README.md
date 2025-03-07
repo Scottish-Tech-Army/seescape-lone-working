@@ -24,7 +24,7 @@ There are documents covering the following.
 
 - [Prerequisites to installation](docs/prereqs.md)
 
-- [Initial installation](docs/initial.md)
+- [Initial installation](docs/creation.md)
 
 - [Subsequent operations](docs/operations.md), such as upgrade or diagnostics collection
 

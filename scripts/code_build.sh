@@ -6,6 +6,7 @@ echo "App: ${APP}"
 
 # This script must run from the parent directory of the scripts directory
 cd "$(dirname "$0")/.."
+source scripts/utils.sh
 
 # Determine whether tests should be run based on the command line argument.
 if [ "$#" -gt 0 ]; then
