@@ -23,8 +23,21 @@ def send_warning_mail(manager, checkin, appointment):
     lines.append(f"  Subject: {appointment['subject']}")
     lines.append(f"  Start time: {appointment['start']['dateTime']}")
     lines.append(f"  End time: {appointment['end']['dateTime']}")
-    lines.append(f"  Meeting details:")
-    lines.append(f"{appointment['body']['content']}")
+
+    lines.append(f"")
+    lines.append(f"Attendee list:")
+
+    attendees = appointment['attendees']
+    if not attendees:
+        lines.append("  No attendees found")
+    else:
+        for attendee in attendees:
+            address = attendee['emailAddress']['address'].lower()
+            lines.append(f"  {address}")
+
+    lines.append(f"")
+    lines.append(f"Meeting description:")
+    lines.append(f"{appointment['bodyPreview']}")
     content = "\r\n".join(lines)
 
     manager.send_mail(subject, content)
@@ -118,10 +131,16 @@ def lambda_handler(event, context):
     process_appointments(manager, checkin_appointments, checkin=True)
     process_appointments(manager, checkout_appointments, checkin=False)
 
+    lines = []
+    lines.append("Check completed")
+    lines.append(f"  Meetings checked : " + str(manager.metrics.get(METRIC_MEETINGS_CHECKED, 0)))
+    lines.append(f"  Checkins missed  : " + str(manager.metrics.get(METRIC_CHECKINS_MISSED, 0)))
+    lines.append(f"  Checkouts missed : " + str(manager.metrics.get(METRIC_CHECKOUTS_MISSED, 0)))
+    message = "\n".join(lines)
+
     # Report back metrics
     manager.emit_metrics()
 
-    message = "Check completed"
     resultMap = {
             "message" : message
             }
