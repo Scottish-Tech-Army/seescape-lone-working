@@ -71,7 +71,7 @@ class LoneWorkerManager:
         # Read configuration from the environment
         ssm = boto3.client('ssm')
         self.app_prefix = os.environ['ssm_prefix']
-        mand_names = ["clientid", "emailuser", "tenant"]
+        mand_names = ["clientid", "emailuser", "tenant", "config"]
         optional_names = ["clientsecret", "emailpass"]
         values = get_params(ssm, self.app_prefix, mand_names=mand_names, optional_names=optional_names)
 
@@ -93,10 +93,9 @@ class LoneWorkerManager:
         else:
             logger.info("Password not defined - using ROPC flow")
 
-        # More config in the S3 bucket.
-        bucket = os.environ['bucket']
-        logger.info("Reading configuration from S3 bucket %s", bucket)
-        self.cfg = cfg_parser.LambdaConfig(bucket_name=bucket)
+        # More config in the config blob.
+        logger.info("Validate configuration")
+        self.cfg = cfg_parser.LambdaConfig(data=values["config"])
 
     def get_token(self):
         """ Get Authentication Code token"""
