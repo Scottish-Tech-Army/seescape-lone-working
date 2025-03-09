@@ -167,17 +167,21 @@ def lambda_handler(event, context):
     """ Lambda Handler"""
     logger.info("Received call to handle")
     manager = utils.LoneWorkerManager("Connect")
+    resultMap = {}
 
     action = event['Details']['Parameters']['buttonpressed']
     if action == KEY_CHECK_IN:
         logger.info("Check in")
         manager.increment_counter(METRIC_CHECKINS)
+        resultMap["action"] = "Check in"
     elif action == KEY_CHECK_OUT:
         logger.info("Check out")
         manager.increment_counter(METRIC_CHECKOUTS)
+        resultMap["action"] = "Check out"
     elif action == KEY_EMERGENCY:
         logger.info("Emergency")
         manager.increment_counter(METRIC_EMERGENCY)
+        resultMap["action"] = "Emergency"
     else:
         logger.error("Invalid action selected")
         raise ValueError(f"Invalid action selected: {action}")
@@ -197,6 +201,7 @@ def lambda_handler(event, context):
         displayName = "UNKNOWN"
         manager.increment_counter(METRIC_UNKNOWN_CALLER)
 
+    resultMap["calling number"] = phone_number
     message = ""
 
     if action == KEY_CHECK_IN or action == KEY_CHECK_OUT:
@@ -232,8 +237,6 @@ def lambda_handler(event, context):
     # Report back metrics
     manager.emit_metrics()
 
-    resultMap = {
-            "message" : message
-            }
+    resultMap["message"] = message
 
     return resultMap

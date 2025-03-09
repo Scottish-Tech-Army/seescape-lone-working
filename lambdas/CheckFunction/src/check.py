@@ -131,18 +131,19 @@ def lambda_handler(event, context):
     process_appointments(manager, checkin_appointments, checkin=True)
     process_appointments(manager, checkout_appointments, checkin=False)
 
-    lines = []
-    lines.append("Check completed")
-    lines.append(f"  Meetings checked : " + str(manager.metrics.get(METRIC_MEETINGS_CHECKED, 0)))
-    lines.append(f"  Checkins missed  : " + str(manager.metrics.get(METRIC_CHECKINS_MISSED, 0)))
-    lines.append(f"  Checkouts missed : " + str(manager.metrics.get(METRIC_CHECKOUTS_MISSED, 0)))
-    message = "\n".join(lines)
-
     # Report back metrics
     manager.emit_metrics()
 
     resultMap = {
-            "message" : message
+            "message" : "Routine check completed"
             }
+
+    metrics = manager.get_metrics()
+
+    resultMap["metrics"] = {}
+
+    resultMap["metrics"]["Meetings checked"] = metrics[METRIC_MEETINGS_CHECKED]
+    resultMap["metrics"]["Missed checkins reported"] = metrics[METRIC_CHECKINS_MISSED]
+    resultMap["metrics"]["Missed checkouts reported"] = metrics[METRIC_CHECKOUTS_MISSED]
 
     return resultMap
