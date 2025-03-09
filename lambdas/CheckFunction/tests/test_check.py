@@ -26,12 +26,25 @@ def test_send_warning_mail_checkin():
         'subject': 'Test Meeting',
         'start': {'dateTime': '2023-01-01T10:00:00'},
         'end': {'dateTime': '2023-01-01T11:00:00'},
-        'body': {'content': 'Meeting details info.'}
+        'bodyPreview': 'Meeting details info.',
+        'attendees': []
     }
     send_warning_mail(manager, True, appointment)
     assert manager.sent_mail is not None
     expected_subject = "Missed check-in"
-    expected_content = "Check-in was missed for an appointment\r\n  Subject: Test Meeting\r\n  Start time: 2023-01-01T10:00:00\r\n  End time: 2023-01-01T11:00:00\r\n  Meeting details:\r\nMeeting details info."
+    lines = []
+
+    lines.append("Check-in was missed for an appointment")
+    lines.append("  Subject: Test Meeting")
+    lines.append("  Start time: 2023-01-01T10:00:00")
+    lines.append("  End time: 2023-01-01T11:00:00")
+    lines.append("")
+    lines.append("Attendee list:")
+    lines.append("  No attendees found")
+    lines.append("")
+    lines.append("Meeting description:")
+    lines.append("Meeting details info.")
+    expected_content = "\r\n".join(lines)
     assert manager.sent_mail[0] == expected_subject
     assert manager.sent_mail[1] == expected_content
 
@@ -41,11 +54,27 @@ def test_send_warning_mail_checkout():
         'subject': 'Test Meeting 2',
         'start': {'dateTime': '2023-01-02T14:00:00'},
         'end': {'dateTime': '2023-01-02T15:00:00'},
-        'body': {'content': 'Checkout details info.'}
+        'bodyPreview': 'Checkout details info.',
+        'attendees': [
+            { 'emailAddress': {'address': 'billy@example.com'}},
+            { 'emailAddress': {'address': 'Sue@example.com'}}
+        ]
     }
     send_warning_mail(manager, False, appointment)
     assert manager.sent_mail is not None
     expected_subject = "Missed check-out"
-    expected_content = "Check-out was missed for an appointment\r\n  Subject: Test Meeting 2\r\n  Start time: 2023-01-02T14:00:00\r\n  End time: 2023-01-02T15:00:00\r\n  Meeting details:\r\nCheckout details info."
+    lines = []
+    lines.append("Check-out was missed for an appointment")
+    lines.append("  Subject: Test Meeting 2")
+    lines.append("  Start time: 2023-01-02T14:00:00")
+    lines.append("  End time: 2023-01-02T15:00:00")
+    lines.append("")
+    lines.append("Attendee list:")
+    lines.append("  billy@example.com")
+    lines.append("  sue@example.com")
+    lines.append("")
+    lines.append("Meeting description:")
+    lines.append("Checkout details info.")
+    expected_content = "\r\n".join(lines)
     assert manager.sent_mail[0] == expected_subject
     assert manager.sent_mail[1] == expected_content

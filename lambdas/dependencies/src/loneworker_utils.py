@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import logging
 import os
 import requests
+from collections import defaultdict
 
 # Our own modules.
 import cfg_parser
@@ -268,16 +269,17 @@ class LoneWorkerManager:
         # Set up metrics; we only do this when we need to actually report them
         self.cloudwatch = boto3.client('cloudwatch')
         self.metrics_namespace = f"{self.app_prefix}/{app_type}"
-        self.metrics = {}
+
+        # metrics is all the metrics reported; metrics_to_emit is all the metrics that have
+        self.metrics = defaultdict(int)
+        self.metrics_to_emit = defaultdict(int)
 
     def increment_counter(self, name, increment=1):
         """
         Increment the supplied metric name by that amount
         """
-        if name in self.metrics:
-            self.metrics[name] += increment
-        else:
-            self.metrics[name] = increment
+        self.metrics[name] += increment
+        self.metrics_to_emit[name] += increment
 
     def emit_metrics(self):
         """
@@ -286,12 +288,12 @@ class LoneWorkerManager:
         logging.info("Emit metrics array: %s", self.metrics)
         # TODO: have a panic about timezones
         timestamp = datetime.now()
-        if not self.metrics:
+        if not self.metrics_to_emit:
             logging.info("No metrics in array - drop out")
             return
 
         metric_data = []
-        for key, value in self.metrics.items():
+        for key, value in self.metrics_to_emit.items():
             metric_data.append({
                 'MetricName': key,
                 'Timestamp': timestamp,
@@ -310,7 +312,13 @@ class LoneWorkerManager:
         logging.info("Metrics emission complete")
 
         # Clear the supplied dict in case we call emit_metrics twice.
-        self.metrics.clear()
+        self.metrics_to_emit.clear()
+
+    def get_metrics(self):
+        """
+        Returns all metrics that have been reported, whether emitted or not.
+        """
+        return self.metrics
 
 def get_params(ssm, prefix, mand_names, optional_names=[]):
     """
