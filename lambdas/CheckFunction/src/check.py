@@ -55,18 +55,27 @@ def get_calendar_items(manager):
     end time that is at least 15 minutes in the past, and no more than 75 minutes in the past.
 
     In both cases, we are giving 15 minutes grace, and ignoring anything that is older than an hour.
+
+    All of these numbers are configurable.
+    - The parameter "15" is in "grace_min"
+    - The parameter "75" is in "ignore_after_min"
     """
     logger.info("Get calendar events")
+
+    app_cfg = manager.get_app_cfg()
+    grace_min = app_cfg["grace_min"]
+    ignore_after_min = app_cfg["ignore_after_min"]
+
     # Checkin filter finds events starting between 75 and 15 minutes ago
     checkin_filters = []
-    checkin_filters.append(utils.TimeFilter(minutes=-75, before_or_after=utils.AFTER, start_or_end=utils.START))
-    checkin_filters.append(utils.TimeFilter(minutes=-15, before_or_after=utils.BEFORE, start_or_end=utils.START))
+    checkin_filters.append(utils.TimeFilter(minutes=-ignore_after_min, before_or_after=utils.AFTER, start_or_end=utils.START))
+    checkin_filters.append(utils.TimeFilter(minutes=-grace_min, before_or_after=utils.BEFORE, start_or_end=utils.START))
     checkin_filter_str = utils.build_time_filter(checkin_filters)
 
     # Checkout filter finds those that ended between 15 minutes ago, and 75 minutes ago - as above, but end time
     checkout_filters = []
-    checkout_filters.append(utils.TimeFilter(minutes=-75, before_or_after=utils.AFTER, start_or_end=utils.END))
-    checkout_filters.append(utils.TimeFilter(minutes=-15, before_or_after=utils.BEFORE, start_or_end=utils.END))
+    checkout_filters.append(utils.TimeFilter(minutes=-ignore_after_min, before_or_after=utils.AFTER, start_or_end=utils.END))
+    checkout_filters.append(utils.TimeFilter(minutes=-grace_min, before_or_after=utils.BEFORE, start_or_end=utils.END))
     checkout_filter_str = utils.build_time_filter(checkout_filters)
 
     # Send the calendar request

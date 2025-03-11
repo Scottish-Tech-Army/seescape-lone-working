@@ -1,5 +1,7 @@
 import sys
 import yaml
+import json
+import jsonschema
 
 # Key values defined as constants
 EMAIL_RECIPS="email_recipients"
@@ -17,22 +19,79 @@ class LambdaConfig:
         if file_path:
             with open(file_path, 'r') as f:
                 self.config = yaml.safe_load(f) or {}
+            # If we are loading from file, we are in a test run
+            print("Parsed file to config as follows")
+            print(json.dumps(self.config, indent=4))
         else:
             self.config = yaml.safe_load(data) or {}
 
         self.validate()
 
     def validate(self):
-        # We assert that the data is correct; if passed invalid data we are just doomed.
-        assert EMAIL_RECIPS in self.config, f"Configuration invalid: required key '{EMAIL_RECIPS}' is missing."
-        assert isinstance(self.config.get(EMAIL_RECIPS), list) and all(isinstance(item, str) for item in self.config.get(EMAIL_RECIPS)), \
-            f"Configuration invalid: '{EMAIL_RECIPS}' must be a list of strings."
+        # Define the JSON schema for configuration validation
+        schema = {
+            "type": "object",
+            "required": [EMAIL_RECIPS, "check", "connect"],
+            "properties": {
+                EMAIL_RECIPS: {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 1
+                },
+                "check": {
+                    "type": "object",
+                    "required": ["grace_min", "ignore_after_min"],
+                    "properties": {
+                        "grace_min": {
+                            "type": "number",
+                            "minimum": 0
+                        },
+                        "ignore_after_min": {
+                            "type": "number",
+                            "minimum": 0
+                        }
+                    },
+                    "additionalProperties": False
+                },
+                "connect": {
+                    "type": "object",
+                    "required": ["checkin_grace_min", "checkout_grace_min", "ignore_after_min"],
+                    "properties": {
+                        "checkin_grace_min": {
+                            "type": "number",
+                            "minimum": 0
+                        },
+                        "checkout_grace_min": {
+                            "type": "number",
+                            "minimum": 0
+                        },
+                        "ignore_after_min": {
+                            "type": "number",
+                            "minimum": 0
+                        }
+                    },
+                    "additionalProperties": False
+                }
+            },
+            "additionalProperties": False
+        }
+
+        try:
+            jsonschema.validate(instance=self.config, schema=schema)
+        except jsonschema.exceptions.ValidationError as e:
+            raise ValueError(f"Configuration validation error: {e}")
 
     def get_email_recipients(self):
         """
         Returns the 'email_recipients' field from the configuration dictionary.
         """
         return self.config.get(EMAIL_RECIPS)
+
+    def get_app_cfg(self, app_name):
+        """
+        Returns the app specific config blob
+        """
+        return self.config.get(app_name.lower())
 
 # For validation purposes, this module must be runnable from the command line.
 def main():
