@@ -28,12 +28,9 @@ def send_warning_mail(manager, checkin, appointment):
     lines.append(f"Attendee list:")
 
     attendees = appointment['attendees']
-    if not attendees:
-        lines.append("  No attendees found")
-    else:
-        for attendee in attendees:
-            address = attendee['emailAddress']['address'].lower()
-            lines.append(f"  {address}")
+    for attendee in attendees:
+        address = attendee['emailAddress']['address'].lower()
+        lines.append(f"  {address}")
 
     lines.append(f"")
     lines.append(f"Meeting description:")
@@ -54,7 +51,7 @@ def get_calendar_items(manager):
     The second array is to catch appointments for which checkout should have occurred. This is those with an
     end time that is at least 15 minutes in the past, and no more than 75 minutes in the past.
 
-    In both cases, we are giving 15 minutes grace, and ignoring anything that is older than an hour.
+    In both cases, we are giving 15 minutes grace, and ignoring anything that is older than 75 minutes.
 
     All of these numbers are configurable.
     - The parameter "15" is in "grace_min"
@@ -101,15 +98,23 @@ def process_appointments(manager, appointments, checkin):
     manager.increment_counter(METRIC_MEETINGS_CHECKED, len(appointments))
 
     for appointment in appointments:
+        logger.debug("Checking appointment : %s", appointment['subject'])
         categories = appointment['categories']
         if target_category in categories:
             # Either we are looking for checkin and there was one, or for checkouts and there was one.
+            logger.debug("Already checked in / out - %s present already", target_category)
             continue
         if missed_category in categories:
             # We already flagged this as a problem
+            logger.debug("Already marked - %s present already", missed_category)
             continue
         if not checkin and utils.MISSED_CHECK_IN in categories:
             # We should not flag a missed checkout if we flagged a missed checkin
+            logger.debug("Ignoring possibly missed checkout where missed checkin reported")
+            continue
+        if not appointment['attendees']:
+            # No attendees for this appointment, so ignore it
+            logger.debug("Ignoring meeting without attendees")
             continue
 
         # If we got here, there is a problem with this appointment
