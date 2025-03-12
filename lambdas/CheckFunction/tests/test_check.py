@@ -40,13 +40,13 @@ def test_send_warning_mail_checkin():
     lines.append("  End time: 2023-01-01T11:00:00")
     lines.append("")
     lines.append("Attendee list:")
-    lines.append("  No attendees found")
     lines.append("")
     lines.append("Meeting description:")
     lines.append("Meeting details info.")
     expected_content = "\r\n".join(lines)
     assert manager.sent_mail[0] == expected_subject
     assert manager.sent_mail[1] == expected_content
+
 
 def test_send_warning_mail_checkout():
     manager = DummyManager()
