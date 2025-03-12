@@ -42,10 +42,12 @@ class LoneWorkerManager:
         Init method just reads the configuration settings.
         """
         logger.info("Get configuration for app %s", app_type)
+        assert app_type in ("Check", "Connect"), "app_type must be either 'Check' or 'Connect'"
+        self.app_type = app_type
         self.read_config()
 
         logger.info("Initialise metrics structures")
-        self.init_metrics(app_type)
+        self.init_metrics()
 
         logger.info("Get auth token")
         self.get_token()
@@ -71,7 +73,7 @@ class LoneWorkerManager:
         # Read configuration from the environment
         ssm = boto3.client('ssm')
         self.app_prefix = os.environ['ssm_prefix']
-        mand_names = ["clientid", "emailuser", "tenant"]
+        mand_names = ["clientid", "emailuser", "tenant", "config"]
         optional_names = ["clientsecret", "emailpass"]
         values = get_params(ssm, self.app_prefix, mand_names=mand_names, optional_names=optional_names)
 
@@ -93,10 +95,12 @@ class LoneWorkerManager:
         else:
             logger.info("Password not defined - using ROPC flow")
 
-        # More config in the S3 bucket.
-        bucket = os.environ['bucket']
-        logger.info("Reading configuration from S3 bucket %s", bucket)
-        self.cfg = cfg_parser.LambdaConfig(bucket_name=bucket)
+        # More config in the config blob.
+        logger.info("Validate configuration")
+        self.cfg = cfg_parser.LambdaConfig(data=values["config"])
+
+    def get_app_cfg(self):
+        return self.cfg.get_app_cfg(self.app_type)
 
     def get_token(self):
         """ Get Authentication Code token"""
@@ -265,10 +269,10 @@ class LoneWorkerManager:
         logger.info("Full list of returned matching addresses: %s", addresses)
         return addresses, display_name
 
-    def init_metrics(self, app_type):
+    def init_metrics(self):
         # Set up metrics; we only do this when we need to actually report them
         self.cloudwatch = boto3.client('cloudwatch')
-        self.metrics_namespace = f"{self.app_prefix}/{app_type}"
+        self.metrics_namespace = f"{self.app_prefix}/{self.app_type}"
 
         # metrics is all the metrics reported; metrics_to_emit is all the metrics that have
         self.metrics = defaultdict(int)
@@ -389,9 +393,9 @@ def build_time_filter(time_filters):
 
     for time_filter in time_filters:
         if time_filter.before_or_after not in [BEFORE, AFTER]:
-            raise ValueError("Time direction must be either '{BEFORE}' or '{AFTER}' - provide value '{time_filter.before_or_after}'")
+            raise ValueError(f"Time direction must be either '{BEFORE}' or '{AFTER}' - provided value '{time_filter.before_or_after}'")
         if time_filter.start_or_end not in [START, END]:
-            raise ValueError(f"Start or end must be either '{START}' or '{END}' - provide value '{time_filter.start_or_end}'")
+            raise ValueError(f"Start or end must be either '{START}' or '{END}' - provided value '{time_filter.start_or_end}'")
 
         logger.info("Building a filter on %s time, checking that it is %s a time %d minutes from now",
                     time_filter.start_or_end, time_filter.before_or_after, time_filter.minutes)

@@ -95,12 +95,12 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: /aws/lambda/ConnectFunction
-      RetentionInDays: 14
+      RetentionInDays: 7
   CheckLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: /aws/lambda/CheckFunction
-      RetentionInDays: 14
+      RetentionInDays: 7
   ConnectFunction:
     Type: AWS::Serverless::Function
     Properties:

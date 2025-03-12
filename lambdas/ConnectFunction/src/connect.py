@@ -25,26 +25,41 @@ def getCalendar(manager, action):
     This code reads relevant events from the calendar of the configured user and returns them in an array.
     """
     logger.info("Get calendar events - action %s", action)
+    app_cfg = manager.get_app_cfg()
+
+    checkin_grace_min = app_cfg["checkin_grace_min"]
+    checkout_grace_min = app_cfg["checkout_grace_min"]
+    ignore_after_min = app_cfg["ignore_after_min"]
 
     time_filters = []
     if action == KEY_CHECK_IN:
-        # Look for a meeting due to start between 30 minutes ago and 30 minutes in the future.
-        time_filters.append(utils.TimeFilter(minutes=-30, before_or_after=utils.AFTER, start_or_end=utils.START))
-        time_filters.append(utils.TimeFilter(minutes=30, before_or_after=utils.BEFORE, start_or_end=utils.START))
+        # Look for a meeting due to start between 30 minutes ago and 30 minutes in the future (actually checkin_grace_min)
+        time_filters.append(utils.TimeFilter(minutes=-checkin_grace_min, before_or_after=utils.AFTER, start_or_end=utils.START))
+        time_filters.append(utils.TimeFilter(minutes=checkin_grace_min, before_or_after=utils.BEFORE, start_or_end=utils.START))
     elif action == KEY_CHECK_OUT:
-        # Look for a meeting due to end between 30 minutes ago and 30 minutes in the future.
-        time_filters.append(utils.TimeFilter(minutes=-30, before_or_after=utils.AFTER, start_or_end=utils.END))
-        time_filters.append(utils.TimeFilter(minutes=30, before_or_after=utils.BEFORE, start_or_end=utils.END))
+        # Look for a meeting due to end between 30 minutes ago and 30 minutes in the future (actually checkout_grace_min)
+        time_filters.append(utils.TimeFilter(minutes=-checkout_grace_min, before_or_after=utils.AFTER, start_or_end=utils.END))
+        time_filters.append(utils.TimeFilter(minutes=checkout_grace_min, before_or_after=utils.BEFORE, start_or_end=utils.END))
     else:
-        # Look for a meeting due to:
-        # - start after 75 minutes ago
-        # - end before 75 minutes in the future (to avoid meetings that are completely in the future)
-        # - end after 30 minutes ago
-        # This is a meeting that the person could plausibly be in that may not have triggered already
+        """
+        Look for a meeting due to:
+        - start before 30 (checkin_grace_min) minutes in the future
+          (so the user could plausibly have got to this meeting)
+        - end after 30 (checkin_grace_min) minutes in the past
+          (so that the user might still be there)
+
+        Some examples.
+        If it is:
+        - 12:34, then any meeting starting before 13:04 and ending after 12:04 would match
+        - 13:17, then any meeting starting before 13:47 and ending after 12:47 would match
+
+        A meeting from 14:00 to 15:00 would match if the current time is anything from 13:30 to 15:30
+
+        This might conceivably match multiple meetings.
+        """
         assert action == KEY_EMERGENCY, "Unexpected action value"
-        time_filters.append(utils.TimeFilter(minutes=-75, before_or_after=utils.AFTER, start_or_end=utils.START))
-        time_filters.append(utils.TimeFilter(minutes=75, before_or_after=utils.BEFORE, start_or_end=utils.END))
-        time_filters.append(utils.TimeFilter(minutes=-30, before_or_after=utils.AFTER, start_or_end=utils.END))
+        time_filters.append(utils.TimeFilter(minutes=ignore_after_min, before_or_after=utils.BEFORE, start_or_end=utils.START))
+        time_filters.append(utils.TimeFilter(minutes=-ignore_after_min, before_or_after=utils.AFTER, start_or_end=utils.END))
 
     filter = utils.build_time_filter(time_filters)
 
@@ -113,12 +128,10 @@ def process_appointments(manager, appointments, addresses, action):
         logger.info("More than one appointment found for this user - count: %d", len(matching_appointments))
         if action != KEY_EMERGENCY:
             manager.increment_counter(METRIC_APPT_NOT_FOUND)
+            return success, "Multiple matching appointments found - please phone the office"
         else:
-            # This is considered a success for an emergency call
-            success = True
-        return success, "Multiple matching appointments found - please phone the office"
-
-    appointment = matching_appointments.pop()
+            # For an emergency call, we just process all matching meetings.
+           logger.info("Emergency call - process all meetings")
 
     time_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -133,34 +146,36 @@ def process_appointments(manager, appointments, addresses, action):
     else:
         target_category = utils.EMERGENCY
         body_message = f"<p>Emergency reported by phone at {time_now}</p>\r\n"
-        message = "" # This will be ignored
+        message = "Emergency call meeting found"
 
-    # Set the category
-    changes = {}
-    categories = appointment['categories']
-    if target_category in categories:
-        logger.info('Appointment already has %s category', target_category)
-        if action == KEY_CHECK_IN:
-            message = "Your appointment has already been checked in"
-            manager.increment_counter(METRIC_DUPLICATE_CALL)
-        elif action == KEY_CHECK_OUT:
-            message = "Your appointment has already been checked out"
-            manager.increment_counter(METRIC_DUPLICATE_CALL)
+    while matching_appointments:
+        appointment = matching_appointments.pop()
+        # Set the category
+        changes = {}
+        categories = appointment['categories']
+        if target_category in categories:
+            logger.info('Appointment already has %s category', target_category)
+            if action == KEY_CHECK_IN:
+                message = "Your appointment has already been checked in"
+                manager.increment_counter(METRIC_DUPLICATE_CALL)
+            elif action == KEY_CHECK_OUT:
+                message = "Your appointment has already been checked out"
+                manager.increment_counter(METRIC_DUPLICATE_CALL)
+            else:
+                message = "Emergency already registered"
         else:
-            message = "Emergency already registered"
-    else:
-        logger.info("Update categories")
-        categories.append(target_category)
-        changes['categories'] = categories
+            logger.info("Update categories")
+            categories.append(target_category)
+            changes['categories'] = categories
 
-    body = appointment['body']
-    body['content'] = body['content'].replace("</body>", f"{body_message}</body>")
-    changes['body'] = body
-    manager.patch_calendar_event(appointment['id'], changes)
-    logger.info("Appointment updated successfully")
+        body = appointment['body']
+        body['content'] = body['content'].replace("</body>", f"{body_message}</body>")
+        changes['body'] = body
+        manager.patch_calendar_event(appointment['id'], changes)
+        logger.info("Appointment updated successfully")
+
     # If we got here, we consider it a success
     success = True
-
     return success, message
 
 def lambda_handler(event, context):
@@ -225,14 +240,15 @@ def lambda_handler(event, context):
         lines.append(f" Caller name if known: {display_name}")
         content = "\r\n".join(lines)
         manager.send_mail(subject, content)
-        message = "Message processed" # Deliberately vague, in case the SOS is overheard
+        message = "Emergency email sent" # This is not actually read out, so is just for diags purposes.
 
         if addresses:
-            logger.info("Emergency mail sent - add emergency tag to meeting if we can find it")
+            logger.info("Emergency mail sent - add emergency tag to meeting or meetings that may match")
             appointments = getCalendar(manager, action)
             # We do not use the message we get back here except to log it; we do try to update the meeting, but cannot do more than that.
             unused_message = process_appointments(manager, appointments, addresses, action)
             logger.info("Got message from appointments: %s", unused_message)
+            resultMap["appointment check result"] = unused_message
 
     # Report back metrics
     manager.emit_metrics()

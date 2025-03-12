@@ -1,5 +1,10 @@
 # This is the configuration that will be loaded and used by the application itself
-# Email recipient list
 email_recipients:
   - "plw@plwtestcompany.onmicrosoft.com"
-
+check:
+  grace_min: 15
+  ignore_after_min: 75
+connect:
+  checkin_grace_min: 30
+  checkout_grace_min: 30
+  ignore_after_min: 75
