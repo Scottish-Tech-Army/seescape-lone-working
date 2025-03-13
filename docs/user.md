@@ -22,7 +22,9 @@ Users who are managing this mailbox can now (or later) view it in Outlook Web or
 
     - In the Manage Calendars section, click `Open Calendar`, then `Open Shared Calendar`.
 
-    - In the `Open a Shared Calendar` dialog box, enter the name of the shared person.
+    - In the `Open a Shared Calendar` dialog box, enter the name of the shared mailbox.
+
+    - Optionally, to add a view of the shared mailbox's emails via `Add shared folder or mailbox`.
 
 ### Configuring user accounts
 
