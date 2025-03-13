@@ -58,7 +58,7 @@ Update the secrets to have the correct values as follows.
 This is largely done by script.
 
 ~~~bash
-bash scripts/lambdas.sh
+bash scripts/connect.sh
 ~~~
 
 Once you have done that you must manually assign a phone number in the AWS Connect GUI. You can find this as follows.
@@ -69,11 +69,15 @@ Once you have done that you must manually assign a phone number in the AWS Conne
 
 - Click `Log in for emergency access`
 
-Now go through each of the following steps.
+- On the left, select `Phone numbers` under `Channels`.
 
-- On the left, select `Phone numbers` under `Channels`. You can then pick a phone number and assign it to the loneworker flow.
+    - Select a phone number.
 
-*TODO: This does not work - there is some kind of quota issue. The workaround appears to be to request a quota increase.*
+    - Assign it to the loneworker flow.
+
+- Find the entries that link to AWS Lambda functions, and reselect the Lambda function (which ensures that permissions are updated for these Lambdas).
+
+- Click publish.
 
 ### Set up dashboards
 

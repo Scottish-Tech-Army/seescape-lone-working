@@ -123,12 +123,12 @@ def process_appointments(manager, appointments, addresses, action):
         else:
             # This is considered a success for an emergency call
             success = True
-        return success, "No matching appointments found - please phone the office"
+        return success, "No matching appointments found."
     if len(matching_appointments) > 1:
         logger.info("More than one appointment found for this user - count: %d", len(matching_appointments))
         if action != KEY_EMERGENCY:
             manager.increment_counter(METRIC_APPT_NOT_FOUND)
-            return success, "Multiple matching appointments found - please phone the office"
+            return success, "Multiple matching appointments found."
         else:
             # For an emergency call, we just process all matching meetings.
            logger.info("Emergency call - process all meetings")
@@ -210,14 +210,20 @@ def lambda_handler(event, context):
     if phone_number:
         logger.info("Get values for phone number %s", phone_number)
         addresses, display_name = manager.phone_to_email(phone_number)
+        # phone_found is used purely to give a better error message
+        phone_found = True
     else:
         phone_number = "UNKNOWN"
         addresses = []
         displayName = "UNKNOWN"
         manager.increment_counter(METRIC_UNKNOWN_CALLER)
+        phone_found = False
 
     resultMap["calling number"] = phone_number
     message = ""
+
+    # Assume failure
+    success = False
 
     if action == KEY_CHECK_IN or action == KEY_CHECK_OUT:
         if addresses:
@@ -226,10 +232,12 @@ def lambda_handler(event, context):
             success, message = process_appointments(manager, appointments, addresses, action)
             if success:
                 manager.increment_counter(METRIC_SUCCESS)
-
         else:
             logger.info("Giving up - no phone number or no matching addresses")
-            message = "Unable to find phone number or address"
+            if phone_found:
+                message = "Unable to find meeting matching your phone number"
+            else:
+                message = "Unable to find your phone number"
     else:
         logger.info("Emergency action selected")
         subject = "Emergency Assistance Required!"
@@ -246,13 +254,16 @@ def lambda_handler(event, context):
             logger.info("Emergency mail sent - add emergency tag to meeting or meetings that may match")
             appointments = getCalendar(manager, action)
             # We do not use the message we get back here except to log it; we do try to update the meeting, but cannot do more than that.
-            unused_message = process_appointments(manager, appointments, addresses, action)
+            success, unused_message = process_appointments(manager, appointments, addresses, action)
             logger.info("Got message from appointments: %s", unused_message)
             resultMap["appointment check result"] = unused_message
 
     # Report back metrics
     manager.emit_metrics()
 
-    resultMap["message"] = message
+    if success:
+        resultMap["message"] = message
+    else:
+        resultMap["message"] = f"An error occurred. {message} Please phone the office."
 
     return resultMap

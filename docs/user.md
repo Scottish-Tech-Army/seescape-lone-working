@@ -30,7 +30,7 @@ Users who are managing this mailbox can now (or later) view it in Outlook Web or
 
 Every person who is to be tracked by the Lone Worker application must have a mobile phone configured. This can be done in two ways.
 
-- If the person has an account and email in the Office 365 tenant, the Office 365 admin should set it. *No, I don't understand why sometimes why users can and sometimes cannot set their own phone numbers. If you can just set it yourself, hooray*.
+- If the person has an account and email in the Office 365 tenant, the Office 365 admin should set it. *No, I don't understand why sometimes why users sometimes can and sometimes cannot set their own phone numbers. If you can just set it yourself, hooray*.
 
     - Go to the [users tab](https://admin.microsoft.com/Adminportal/Home?#/users) in the Office 365 admin portal.
 
