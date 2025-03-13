@@ -156,8 +156,6 @@ You now need to create and configure an *application*. This is the term that Mic
 
 Unfortunately, use of the client credentials model grants the application rights to every mailbox in the enterprise, which is not such a good idea. The solution is to use PowerShell to set up permissions to restrict it to a single mailbox (or more accurately to a group consisting of a single mailbox). Instructions for this process are the following.
 
-*I have tested that these steps work in powershell, but am not convinced they do anything. This whole section probably needs to be moved.*
-
 - Go to the [Entra Admin Centre](https://entra.microsoft.com]
 
 - Create a group.
@@ -180,32 +178,32 @@ Unfortunately, use of the client credentials model grants the application rights
 
 - Install PowerShell to run the commands below; powershell comes with Windows but also exists on linux now.
 
-- Install the relevant module
+    - Install the relevant module
 
-~~~powershell
-Install-Module -Name ExchangeOnlineManagement -Scope CurrentUser
-~~~
+    ~~~powershell
+    Install-Module -Name ExchangeOnlineManagement -Scope CurrentUser
+    ~~~
 
-- Connect to Exchange Online as the admin user of the account.
+    - Connect to Exchange Online as the admin user of the account.
 
-~~~powershell
-Connect-ExchangeOnline -UserPrincipalName <YOUR_EMAIL>
-~~~
+    ~~~powershell
+    Connect-ExchangeOnline -UserPrincipalName <YOUR_EMAIL>
+    ~~~
 
-- Create a policy; note that you must substitute your application ID (client ID) into the string.
+    - Create a policy; note that you must substitute your application ID (client ID) into the string.
 
-~~~powershell
-New-ApplicationAccessPolicy -AppId <YOUR_APP_ID> `
-  -PolicyScopeGroupId <THAT_GUID_YOU_SAVED> `
-  -AccessRight RestrictAccess `
-  -Description "Restrict app access to allowed mailboxes only"
-~~~
+    ~~~powershell
+    New-ApplicationAccessPolicy -AppId <YOUR_APP_ID> `
+    -PolicyScopeGroupId <THAT_GUID_YOU_SAVED> `
+    -AccessRight RestrictAccess `
+    -Description "Restrict app access to allowed mailboxes only"
+    ~~~
 
-- Test the policy for a specified mailbox/
+    - Test the policy for a specified mailbox/
 
-~~~powershell
-Test-ApplicationAccessPolicy -Identity <TEST_USER_EMAIL> -AppId <YOUR_APP_ID>
-~~~
+    ~~~powershell
+    Test-ApplicationAccessPolicy -Identity <TEST_USER_EMAIL> -AppId <YOUR_APP_ID>
+    ~~~
 
 ## Config file
 
