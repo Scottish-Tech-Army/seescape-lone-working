@@ -81,15 +81,9 @@ Once you have done that you must manually assign a phone number in the AWS Conne
 
 ### Set up dashboards
 
-This could be automated better, but a basic dashboard can be created as follows.
+This could be automated better (and there is some hardcoding of values), but a basic dashboard can be created as follows.
 
 ~~~bash
 aws cloudwatch put-dashboard --dashboard-name "loneworker" --dashboard-body file://resources/dashboard.json
 ~~~
-
-## Validation
-
-*TODO: Some level of test and validation*
-
-
 
