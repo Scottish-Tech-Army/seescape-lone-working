@@ -11,3 +11,5 @@ source scripts/utils.sh
 STACK_NAME="${APP}-lambdas"
 
 create_or_update_stack ${STACK_NAME} "lambdas.yaml"  "--capabilities CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM"
+
+echo "SUCCESS"

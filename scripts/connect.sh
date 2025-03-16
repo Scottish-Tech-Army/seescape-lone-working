@@ -45,3 +45,4 @@ aws connect associate-phone-number-contact-flow
 aws connect list-prompts --instance-id ${INSTANCE}
 aws connect create-prompt --instance-id ${INSTANCE} --name "hello" --s3-uri (whatever) --tags ${TAGS}
 
+echo "SUCCESS"
