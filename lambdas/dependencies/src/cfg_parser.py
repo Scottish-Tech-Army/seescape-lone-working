@@ -19,19 +19,25 @@ class LambdaConfig:
         if file_path:
             with open(file_path, 'r') as f:
                 self.config = yaml.safe_load(f) or {}
-            # If we are loading from file, we are in a test run
-            print("Parsed file to config as follows")
-            print(json.dumps(self.config, indent=4))
         else:
             self.config = yaml.safe_load(data) or {}
 
         self.validate()
 
+        # If we are loading from file, we are in a test run, and should write debug info
+        if file_path:
+            print("Parsed file to config as follows")
+            print(self.pretty_format())
+
+    def pretty_format(self):
+        # Return a pretty printed version of the config object
+        return json.dumps(self.config, indent=4)
+
     def validate(self):
         # Define the JSON schema for configuration validation
         schema = {
             "type": "object",
-            "required": [EMAIL_RECIPS, "check", "connect"],
+            "required": [EMAIL_RECIPS],
             "properties": {
                 EMAIL_RECIPS: {
                     "type": "array",
@@ -39,8 +45,7 @@ class LambdaConfig:
                     "minItems": 1
                 },
                 "check": {
-                    "type": "object",
-                    "required": ["grace_min", "ignore_after_min"],
+                    "type": ["object", "null"],
                     "properties": {
                         "grace_min": {
                             "type": "number",
@@ -54,8 +59,7 @@ class LambdaConfig:
                     "additionalProperties": False
                 },
                 "connect": {
-                    "type": "object",
-                    "required": ["checkin_grace_min", "checkout_grace_min", "ignore_after_min"],
+                    "type": ["object", "null"],
                     "properties": {
                         "checkin_grace_min": {
                             "type": "number",
@@ -80,6 +84,35 @@ class LambdaConfig:
             jsonschema.validate(instance=self.config, schema=schema)
         except jsonschema.exceptions.ValidationError as e:
             raise ValueError(f"Configuration validation error: {e}")
+
+        # Default the check structure to be present but empty
+        try:
+            check = self.config["check"]
+            if not check:
+                raise KeyError
+        except KeyError:
+            check = {}
+            self.config["check"] = check
+
+        # Default the connect structure to be present but empty
+        try:
+            connect = self.config["connect"]
+            if not connect:
+                raise KeyError
+        except KeyError:
+            connect = {}
+            self.config["connect"] = connect
+
+        if not "grace_min" in check:
+            check["grace_min"] = 15
+        if not "ignore_after_min" in check:
+            check["ignore_after_min"] = 75
+        if not "checkin_grace_min" in connect:
+             connect["checkin_grace_min"] = 30
+        if not "checkout_grace_min" in connect:
+             connect["checkout_grace_min"] = 30
+        if not "ignore_after_min" in connect:
+            connect["ignore_after_min"] = 75
 
     def get_email_recipients(self):
         """

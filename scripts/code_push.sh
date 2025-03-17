@@ -63,6 +63,7 @@ done
 # If CONCURRENCY is 0, then drop out
 if [ "${CONCURRENCY}" -eq 0 ]; then
     echo "CONCURRENCY is 0, stopping without setting up concurrency."
+    echo "SUCCESS"
     exit 0
 fi
 
@@ -81,3 +82,5 @@ echo "  published version ${VERSION}"
 aws lambda put-provisioned-concurrency-config --function-name ConnectFunction \
   --qualifier ${VERSION} \
   --provisioned-concurrent-executions ${CONCURRENCY}
+
+echo "SUCCESS"

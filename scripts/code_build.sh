@@ -65,3 +65,5 @@ do
     # Push those zip files into the S3 bucket
     popd
 done
+
+echo "SUCCESS"

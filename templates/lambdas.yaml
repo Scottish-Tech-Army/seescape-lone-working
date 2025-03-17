@@ -153,6 +153,6 @@ Resources:
         InvocationLevel:
           Type: Schedule
           Properties:
-            Schedule: cron(0/15 * * * ? *)
+            Schedule: cron(0/10 * * * ? *)
     Metadata:
       SamResourceId: CheckFunction

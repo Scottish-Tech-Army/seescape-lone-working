@@ -52,4 +52,4 @@ aws ssm put-parameter --name /${APP}/emailuser --description "Email user (in for
                       --value "DummySecretValue" --type "SecureString" \
                       --tags ${TAGS}
 
-echo "You must now update the values of the security parameters, which have placeholder values only"
+echo "SUCCESS"

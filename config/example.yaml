@@ -1,0 +1,15 @@
+# Example configuration file. Do not edit this - copy it and create your own.
+# Defaulted values are commented out, with their default shown.
+#
+# Email recipients for warnings about emergency calls and missed checkins / outs.
+# Must be a list of email addresses.
+email_recipients:
+  - "somebody@example.com"
+  - "somebody_else@company.io"
+#check: # Parameters for periodic checks for missed checkins / checkouts
+#  grace_min: 15          # Number of minutes that a checkin / out must be late by to trigger an alarm
+#  ignore_after_min: 75   # If a meeting is more than ignore_after_min minutes old, it is ignored
+#connect: # Parameters used during calls
+#  checkin_grace_min: 30  # You can check in to a meeting within checkin_grace_min minutes of its start time
+#  checkout_grace_min: 30 # You can check out of a meeting within checkout_grace_min minutes of its end time
+#  ignore_after_min: 75   # If a meeting is more than ignore_after_min minutes old, it is ignored

@@ -30,3 +30,5 @@ else
                         --value "$VALUE" --type "String" \
                         --tags ${TAGS}
 fi
+
+echo "SUCCESS"

@@ -99,6 +99,9 @@ class LoneWorkerManager:
         logger.info("Validate configuration")
         self.cfg = cfg_parser.LambdaConfig(data=values["config"])
 
+        # Log the configuration
+        logger.info("Configuration: %s", self.cfg.pretty_format())
+
     def get_app_cfg(self):
         return self.cfg.get_app_cfg(self.app_type)
 
