@@ -37,9 +37,9 @@ MISSED_CHECK_OUT = "Missed-Check-Out"
 EMERGENCY = "Emergency"
 
 class LoneWorkerManager:
-    def __init__(self, app_type):
+    def __init__(self, app_type, metric_names=[]):
         """
-        Init method just reads the configuration settings.
+        Init method.
         """
         logger.info("Get configuration for app %s", app_type)
         assert app_type in ("Check", "Connect"), "app_type must be either 'Check' or 'Connect'"
@@ -47,7 +47,7 @@ class LoneWorkerManager:
         self.read_config()
 
         logger.info("Initialise metrics structures")
-        self.init_metrics()
+        self.init_metrics(metric_names)
 
         logger.info("Get auth token")
         self.get_token()
@@ -272,14 +272,18 @@ class LoneWorkerManager:
         logger.info("Full list of returned matching addresses: %s", addresses)
         return addresses, display_name
 
-    def init_metrics(self):
-        # Set up metrics; we only do this when we need to actually report them
+    def init_metrics(self, metric_names):
+        # Set up metrics ready to report
         self.cloudwatch = boto3.client('cloudwatch')
         self.metrics_namespace = f"{self.app_prefix}/{self.app_type}"
 
         # metrics is all the metrics reported; metrics_to_emit is all the metrics that have
         self.metrics = defaultdict(int)
         self.metrics_to_emit = defaultdict(int)
+
+        # Add any metric names supplied to the list ready to emit, with zero values.
+        for name in metric_names:
+            self.metrics_to_emit[name] = 0
 
     def increment_counter(self, name, increment=1):
         """

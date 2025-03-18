@@ -69,7 +69,7 @@ def test_process_appointments_no_matching_appointments(dummy_manager):
     ]
     addresses = ["fred@example.com"]
     result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_IN)
-    assert result == (False, "No matching appointments found - please phone the office")
+    assert result == (False, "No matching appointments found.")
     assert not dummy_manager.patch_calendar_event.called
 
 def test_process_appointments_multiple_matching_appointments(dummy_manager):
@@ -79,7 +79,7 @@ def test_process_appointments_multiple_matching_appointments(dummy_manager):
     ]
     addresses = ["billy@example.com"]
     result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_IN)
-    assert result == (False, "Multiple matching appointments found - please phone the office")
+    assert result == (False, "Multiple matching appointments found.")
     assert not dummy_manager.patch_calendar_event.called
 
 def test_process_appointments_already_checked_in(dummy_manager):
@@ -109,7 +109,7 @@ def test_process_appointments_check_out_no_checkin(dummy_manager):
         make_appointment(categories=["Random stuff"], attendee_mails=addresses)
     ]
     result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_OUT)
-    assert result == (False, "No matching appointments found - please phone the office")
+    assert result == (False, "No matching appointments found.")
     dummy_manager.patch_calendar_event.assert_not_called()
 
 def test_process_appointments_invalid_action(dummy_manager):

@@ -2,13 +2,13 @@
 
 You must have done all the following before you start installation.
 
-- [Set up an AWS subscription to use](#aws-subscription)
+1. [Set up an AWS subscription to use](#aws-subscription)
 
-- [Set up an M365 mailbox with appropriate client configuration](#m365-account)
+2. [Set up an M365 mailbox with appropriate client configuration](#m365-account)
 
-- [Created a configuration file](#config-file)
+3. [Created a configuration file](#config-file)
 
-*To be provided - AWS CLI, other tools*
+*TODO: mention AWS CLI, python, other command line tools*
 
 ## AWS subscription
 
@@ -17,6 +17,8 @@ You must have done all the following before you start installation.
 ## M365 account
 
 The M365 requirements are to set up an M365 email account with a calendar to use, plus the capability for the application to log into it. This process is fiddly, but that's the trouble with security.
+
+*TODO: should retire ROPC flow, and be more prescriptive, including removing all mention of passwords.*
 
 Before you start working through the process, you need to decide what OAuth2 flow to use, because we are in that kind of world. There are two choices, either [ROPC (Resource Owner Password Credentials) flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth-ropc), or [client credentials flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow). The pros and cons of these methods are as follows.
 
@@ -53,6 +55,8 @@ The outputs from this process will include:
 Store these off securely; you'll need all of them later.
 
 ### Tenant
+
+*TODO: probably worth just adding this to the assumptions, rather than saying that you might not already have one.*
 
 There are four options here.
 
@@ -134,15 +138,15 @@ You now need to create and configure an *application*. This is the term that Mic
 
     - Next to `Add a permission`, there is a button `Grant admin consent for <your tenant name>`. Click it.
 
-- *Only if you are using ROBC, i.e. a user password", disable MFA for the user. Exactly how to do this varies according to enterprise.
+- *Only if you are using ROBC, i.e. a user password*, disable MFA for the user. Exactly how to do this varies according to enterprise.
 
     - For most newly created test enterprises, this requires turning off "Security Defaults" if that is enforcing MFA, or modifying "Conditional Access Policies" if that is enforcing MFA.
 
-        - Go to [Entra Admin Centre](https://entra.microsoft.com]
+        - Go to the [Entra Admin Centre](https://entra.microsoft.com)
 
         - Turn off security defaults
 
-            - Find `Microsoft Entra ID` (search for it)
+            - Find `Microsoft Entra ID` (search for it in the search bar)
 
             - Click `Properties`
 
@@ -154,7 +158,7 @@ You now need to create and configure an *application*. This is the term that Mic
 
 #### Further client credentials steps
 
-Unfortunately, use of the client credentials model grants the application rights to every mailbox in the enterprise, which is not such a good idea. The solution is to use PowerShell to set up permissions to restrict it to a single mailbox (or more accurately to a group consisting of a single mailbox). Instructions for this process are the following.
+Unfortunately, use of the client credentials model grants the application rights to every mailbox in the enterprise, which is not such a good idea. The solution is to use PowerShell to set up permissions to restrict it to a single mailbox (or more accurately to a group consisting of a single mailbox, the shared mailbox you created above). Instructions for this process are the following.
 
 - Go to the [Entra Admin Centre](https://entra.microsoft.com]
 
@@ -164,7 +168,7 @@ Unfortunately, use of the client credentials model grants the application rights
 
     - Create a new group, of type `Mail-Enabled Security`, which we will assume is called `loneworker`.
 
-    - Give it an email, one that does not clash with anything else.
+    - Give it an email. This email should be one that stops people accidentally inviting it to meetings - so do not give it something that can easily be confused with the lone worker shared mailbox mail.
 
     - Description I picked was "Users whose accounts the loneworker app can access"
 

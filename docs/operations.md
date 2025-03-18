@@ -20,46 +20,60 @@ In order to take a new version of the code, you should follow the process below.
     bash scripts/code_build.sh test && bash scripts/code_push.sh
     ~~~
 
-- Validate that the code is working manually.
+- Validate that the code is working manually, following the steps below.
 
-    - Log into the AWS console, and find Lambda functions (enter `lambda` in the search bar if necessary).
+## Validation and testing
 
-    - To validate the `check` function works:
+### Validating credentials
 
-        - Select `CheckFunction`
+*TODO: add the test script that checks that all the right permissions are set up.*
 
-        - Click the `Test` button
+### Validating the lambda functions
 
-        - Ensure that the response looks reasonable, and check the logs (linked to from that page)
+This checks that the lambda functions are doing what they should be doing.
 
-        - Repeat after setting up some meetings that should trigger mails (obviously, make sure you do not cause a panic when you do this).
+- Log into the AWS console, and find Lambda functions (enter `lambda` in the search bar if necessary).
 
-    - To validate the `connect` function works:
+- To validate the `check` function works:
 
-        - Select `ConnectFunction`
+    - Select `CheckFunction`
 
-        - Set up three inputs (if they do not already exist). These can all look something like the example below - with "buttonpressed" taking the value 1, 2, 3 for checkin / checkout / emergency. You should ensure that the mobile number matches a real mobile number.
+    - Click the `Test` button
 
-        ~~~json
-        {
-        "Details": {
-            "Parameters": {
-            "buttonpressed": "1"
-            },
-            "ContactData": {
-            "CustomerEndpoint": {
-                "Address": "+447123123456"
-            }
-            }
+    - Ensure that the response looks reasonable, and check the logs (linked to from that page)
+
+    - Repeat after setting up some meetings that should trigger mails (obviously, make sure you do not cause a panic when you do this).
+
+- To validate the `connect` function works:
+
+    - Select `ConnectFunction`
+
+    - Set up three inputs (if they do not already exist). These can all look something like the example below - with "buttonpressed" taking the value 1, 2, 3 for checkin / checkout / emergency. You should ensure that the mobile number matches a real mobile number.
+
+    ~~~json
+    {
+    "Details": {
+        "Parameters": {
+        "buttonpressed": "1"
+        },
+        "ContactData": {
+        "CustomerEndpoint": {
+            "Address": "+447123123456"
         }
         }
-        ~~~
+    }
+    }
+    ~~~
 
-        - Click the `Test` button
+    - Click the `Test` button
 
-        - Ensure that the response looks reasonable, and check the logs (linked to from that page)
+    - Ensure that the response looks reasonable, and check the logs (linked to from that page)
 
-        - Set up some real meetings and make sure that checkin / checkout / emergency calls work.
+    - Set up some real meetings and make sure that checkin / checkout / emergency calls work.
+
+### End to end testing
+
+*TODO: largely just calling in and seeing if it works.*
 
 ## Monitoring
 
@@ -69,6 +83,8 @@ You can find logs, dashboards and metrics under CloudWatch.
 
 - Go to CloudWatch (enter `CloudWatch` in the search bar if necessary).
 
-- You should see a dashboard (the `loneworker` dashboard) with metrics.
+- The dashboard is named with the value of `${APP}`, which is normally `loneworker`. This shows how many calls to the Lambda functions of different types have occurred.
 
 - You should also be able to find logs for all calls to the lambda functions.
+
+
