@@ -128,151 +128,152 @@ Resources:
   LoneworkerDashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
-      DashboardName: Lone worker dashboard
-      DashboardBody: |
-        {
-            "widgets": [
-                {
-                    "height": 6,
-                    "width": 6,
-                    "y": 3,
-                    "x": 0,
-                    "type": "metric",
-                    "properties": {
-                        "metrics": [
-                            [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "eu-west-2", "visible": false } ],
-                            [ ".", "Errors", ".", ".", { "region": "eu-west-2", "visible": false } ],
-                            [ "...", "ConnectFunction", { "region": "eu-west-2", "color": "#d62728" } ],
-                            [ ".", "Invocations", ".", ".", { "region": "eu-west-2", "color": "#2ca02c" } ]
-                        ],
-                        "view": "timeSeries",
-                        "stacked": false,
-                        "region": "eu-west-2",
-                        "period": 3600,
-                        "stat": "Sum",
-                        "title": "Connect function invocations and errors"
-                    }
-                },
-                {
-                    "height": 6,
-                    "width": 6,
-                    "y": 9,
-                    "x": 0,
-                    "type": "metric",
-                    "properties": {
-                        "metrics": [
-                            [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "eu-west-2", "color": "#2ca02c" } ],
-                            [ ".", "Errors", ".", ".", { "region": "eu-west-2", "color": "#d62728" } ],
-                            [ "...", "ConnectFunction", { "region": "eu-west-2", "visible": false } ],
-                            [ ".", "Invocations", ".", ".", { "region": "eu-west-2", "visible": false } ],
-                            [ "loneworker/Check", "CheckinsMissed", { "region": "eu-west-2", "visible": false } ],
-                            [ ".", "CheckoutsMissed", { "region": "eu-west-2", "visible": false } ],
-                            [ ".", "MeetingsChecked", { "region": "eu-west-2", "visible": false } ]
-                        ],
-                        "view": "timeSeries",
-                        "stacked": false,
-                        "region": "eu-west-2",
-                        "title": "Check function invocations and errors",
-                        "period": 3600,
-                        "stat": "Sum"
-                    }
-                },
-                {
-                    "height": 6,
-                    "width": 6,
-                    "y": 3,
-                    "x": 6,
-                    "type": "metric",
-                    "properties": {
-                        "metrics": [
-                            [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "eu-west-2", "color": "#2ca02c", "visible": false } ],
-                            [ ".", "Errors", ".", ".", { "region": "eu-west-2", "color": "#d62728", "visible": false } ],
-                            [ "...", "ConnectFunction", { "region": "eu-west-2", "color": "#d62728", "visible": false } ],
-                            [ ".", "Invocations", ".", ".", { "region": "eu-west-2", "color": "#c49c94", "visible": false } ],
-                            [ "loneworker/Check", "CheckinsMissed", { "region": "eu-west-2", "visible": false } ],
-                            [ ".", "CheckoutsMissed", { "region": "eu-west-2", "visible": false } ],
-                            [ ".", "MeetingsChecked", { "region": "eu-west-2", "visible": false } ],
-                            [ "loneworker/Connect", "NoMatchingAppointment", { "region": "eu-west-2" } ],
-                            [ ".", "Checkins", { "region": "eu-west-2" } ],
-                            [ ".", "Emergencies", { "region": "eu-west-2" } ],
-                            [ ".", "Checkouts", { "region": "eu-west-2" } ],
-                            [ ".", "DuplicateCall", { "region": "eu-west-2" } ],
-                            [ ".", "Success", { "region": "eu-west-2" } ],
-                            [ ".", "UnknownCaller", { "region": "eu-west-2" } ]
-                        ],
-                        "view": "timeSeries",
-                        "stacked": false,
-                        "region": "eu-west-2",
-                        "title": "Connect function results",
-                        "period": 3600,
-                        "stat": "Sum"
-                    }
-                },
-                {
-                    "height": 6,
-                    "width": 6,
-                    "y": 9,
-                    "x": 6,
-                    "type": "metric",
-                    "properties": {
-                        "metrics": [
-                            [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "eu-west-2", "color": "#2ca02c", "visible": false } ],
-                            [ ".", "Errors", ".", ".", { "region": "eu-west-2", "color": "#d62728", "visible": false } ],
-                            [ "...", "ConnectFunction", { "region": "eu-west-2", "visible": false } ],
-                            [ ".", "Invocations", ".", ".", { "region": "eu-west-2", "visible": false } ],
-                            [ "loneworker/Check", "CheckinsMissed", { "region": "eu-west-2" } ],
-                            [ ".", "CheckoutsMissed", { "region": "eu-west-2" } ],
-                            [ ".", "MeetingsChecked", { "region": "eu-west-2" } ]
-                        ],
-                        "view": "timeSeries",
-                        "stacked": false,
-                        "region": "eu-west-2",
-                        "title": "Check function results",
-                        "period": 3600,
-                        "stat": "Sum"
-                    }
-                },
-                {
-                    "height": 5,
-                    "width": 6,
-                    "y": 3,
-                    "x": 12,
-                    "type": "alarm",
-                    "properties": {
-                        "title": "Issues in past 12 hours",
-                        "alarms": [
-                            "arn:aws:cloudwatch:eu-west-2:575108929686:alarm:Missed Checkins",
-                            "arn:aws:cloudwatch:eu-west-2:575108929686:alarm:Emergency Calls",
-                            "arn:aws:cloudwatch:eu-west-2:575108929686:alarm:Missed Checkouts",
-                            "arn:aws:cloudwatch:eu-west-2:575108929686:alarm:Connect Function Errors",
-                            "arn:aws:cloudwatch:eu-west-2:575108929686:alarm:Connect Function Throttles",
-                            "arn:aws:cloudwatch:eu-west-2:575108929686:alarm:Check Function Errors",
-                            "arn:aws:cloudwatch:eu-west-2:575108929686:alarm:Check Function Throttles"
-                        ]
-                    }
-                },
-                {
-                    "height": 3,
-                    "width": 18,
-                    "y": 0,
-                    "x": 0,
-                    "type": "metric",
-                    "properties": {
-                        "metrics": [
-                            [ "loneworker/Connect", "Emergencies", { "region": "eu-west-2", "label": "Emergency calls" } ],
-                            [ "loneworker/Check", "CheckinsMissed", { "region": "eu-west-2", "label": "Checkins missed" } ],
-                            [ ".", "CheckoutsMissed", { "region": "eu-west-2", "label": "Checkouts missed" } ]
-                        ],
-                        "sparkline": false,
-                        "view": "singleValue",
-                        "region": "eu-west-2",
-                        "period": 300,
-                        "stat": "Sum",
-                        "title": "Missed calls and emergencies",
-                        "setPeriodToTimeRange": true,
-                        "trend": false
-                    }
-                }
-            ]
-        }
-
+      DashboardName:
+        Fn::Sub: "${app}"
+      DashboardBody:
+        Fn::Sub: |
+          {
+              "widgets": [
+                  {
+                      "height": 6,
+                      "width": 6,
+                      "y": 3,
+                      "x": 0,
+                      "type": "metric",
+                      "properties": {
+                          "metrics": [
+                              [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "eu-west-2", "visible": false } ],
+                              [ ".", "Errors", ".", ".", { "region": "eu-west-2", "visible": false } ],
+                              [ "...", "ConnectFunction", { "region": "eu-west-2", "color": "#d62728" } ],
+                              [ ".", "Invocations", ".", ".", { "region": "eu-west-2", "color": "#2ca02c" } ]
+                          ],
+                          "view": "timeSeries",
+                          "stacked": false,
+                          "region": "eu-west-2",
+                          "period": 3600,
+                          "stat": "Sum",
+                          "title": "Connect function invocations and errors"
+                      }
+                  },
+                  {
+                      "height": 6,
+                      "width": 6,
+                      "y": 9,
+                      "x": 0,
+                      "type": "metric",
+                      "properties": {
+                          "metrics": [
+                              [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "eu-west-2", "color": "#2ca02c" } ],
+                              [ ".", "Errors", ".", ".", { "region": "eu-west-2", "color": "#d62728" } ],
+                              [ "...", "ConnectFunction", { "region": "eu-west-2", "visible": false } ],
+                              [ ".", "Invocations", ".", ".", { "region": "eu-west-2", "visible": false } ],
+                              [ "${app}/Check", "CheckinsMissed", { "region": "eu-west-2", "visible": false } ],
+                              [ ".", "CheckoutsMissed", { "region": "eu-west-2", "visible": false } ],
+                              [ ".", "MeetingsChecked", { "region": "eu-west-2", "visible": false } ]
+                          ],
+                          "view": "timeSeries",
+                          "stacked": false,
+                          "region": "eu-west-2",
+                          "title": "Check function invocations and errors",
+                          "period": 3600,
+                          "stat": "Sum"
+                      }
+                  },
+                  {
+                      "height": 6,
+                      "width": 6,
+                      "y": 3,
+                      "x": 6,
+                      "type": "metric",
+                      "properties": {
+                          "metrics": [
+                              [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "eu-west-2", "color": "#2ca02c", "visible": false } ],
+                              [ ".", "Errors", ".", ".", { "region": "eu-west-2", "color": "#d62728", "visible": false } ],
+                              [ "...", "ConnectFunction", { "region": "eu-west-2", "color": "#d62728", "visible": false } ],
+                              [ ".", "Invocations", ".", ".", { "region": "eu-west-2", "color": "#c49c94", "visible": false } ],
+                              [ "${app}/Check", "CheckinsMissed", { "region": "eu-west-2", "visible": false } ],
+                              [ ".", "CheckoutsMissed", { "region": "eu-west-2", "visible": false } ],
+                              [ ".", "MeetingsChecked", { "region": "eu-west-2", "visible": false } ],
+                              [ "${app}/Connect", "NoMatchingAppointment", { "region": "eu-west-2" } ],
+                              [ ".", "Checkins", { "region": "eu-west-2" } ],
+                              [ ".", "Emergencies", { "region": "eu-west-2" } ],
+                              [ ".", "Checkouts", { "region": "eu-west-2" } ],
+                              [ ".", "DuplicateCall", { "region": "eu-west-2" } ],
+                              [ ".", "Success", { "region": "eu-west-2" } ],
+                              [ ".", "UnknownCaller", { "region": "eu-west-2" } ]
+                          ],
+                          "view": "timeSeries",
+                          "stacked": false,
+                          "region": "eu-west-2",
+                          "title": "Connect function results",
+                          "period": 3600,
+                          "stat": "Sum"
+                      }
+                  },
+                  {
+                      "height": 6,
+                      "width": 6,
+                      "y": 9,
+                      "x": 6,
+                      "type": "metric",
+                      "properties": {
+                          "metrics": [
+                              [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "eu-west-2", "color": "#2ca02c", "visible": false } ],
+                              [ ".", "Errors", ".", ".", { "region": "eu-west-2", "color": "#d62728", "visible": false } ],
+                              [ "...", "ConnectFunction", { "region": "eu-west-2", "visible": false } ],
+                              [ ".", "Invocations", ".", ".", { "region": "eu-west-2", "visible": false } ],
+                              [ "${app}/Check", "CheckinsMissed", { "region": "eu-west-2" } ],
+                              [ ".", "CheckoutsMissed", { "region": "eu-west-2" } ],
+                              [ ".", "MeetingsChecked", { "region": "eu-west-2" } ]
+                          ],
+                          "view": "timeSeries",
+                          "stacked": false,
+                          "region": "eu-west-2",
+                          "title": "Check function results",
+                          "period": 3600,
+                          "stat": "Sum"
+                      }
+                  },
+                  {
+                      "height": 5,
+                      "width": 6,
+                      "y": 3,
+                      "x": 12,
+                      "type": "alarm",
+                      "properties": {
+                          "title": "Issues in past 12 hours",
+                          "alarms": [
+                              "arn:aws:cloudwatch:eu-west-2:575108929686:alarm:Missed Checkins",
+                              "arn:aws:cloudwatch:eu-west-2:575108929686:alarm:Emergency Calls",
+                              "arn:aws:cloudwatch:eu-west-2:575108929686:alarm:Missed Checkouts",
+                              "arn:aws:cloudwatch:eu-west-2:575108929686:alarm:Connect Function Errors",
+                              "arn:aws:cloudwatch:eu-west-2:575108929686:alarm:Connect Function Throttles",
+                              "arn:aws:cloudwatch:eu-west-2:575108929686:alarm:Check Function Errors",
+                              "arn:aws:cloudwatch:eu-west-2:575108929686:alarm:Check Function Throttles"
+                          ]
+                      }
+                  },
+                  {
+                      "height": 3,
+                      "width": 18,
+                      "y": 0,
+                      "x": 0,
+                      "type": "metric",
+                      "properties": {
+                          "metrics": [
+                              [ "${app}/Connect", "Emergencies", { "region": "eu-west-2", "label": "Emergency calls" } ],
+                              [ "${app}/Check", "CheckinsMissed", { "region": "eu-west-2", "label": "Checkins missed" } ],
+                              [ ".", "CheckoutsMissed", { "region": "eu-west-2", "label": "Checkouts missed" } ]
+                          ],
+                          "sparkline": false,
+                          "view": "singleValue",
+                          "region": "eu-west-2",
+                          "period": 300,
+                          "stat": "Sum",
+                          "title": "Missed calls and emergencies",
+                          "setPeriodToTimeRange": true,
+                          "trend": false
+                      }
+                  }
+              ]
+          }
