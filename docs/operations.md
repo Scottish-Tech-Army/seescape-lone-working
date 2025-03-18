@@ -52,16 +52,16 @@ This checks that the lambda functions are doing what they should be doing.
 
     ~~~json
     {
-    "Details": {
-        "Parameters": {
-        "buttonpressed": "1"
-        },
-        "ContactData": {
-        "CustomerEndpoint": {
-            "Address": "+447123123456"
+        "Details": {
+            "Parameters": {
+            "buttonpressed": "1"
+            },
+            "ContactData": {
+                "CustomerEndpoint": {
+                    "Address": "+447123123456"
+                }
+            }
         }
-        }
-    }
     }
     ~~~
 

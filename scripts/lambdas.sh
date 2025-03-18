@@ -14,6 +14,4 @@ create_or_update_stack ${STACK_NAME} "lambdas.yaml"  "--capabilities CAPABILITY_
 STACK_NAME="${APP}-dashboard"
 create_or_update_stack ${STACK_NAME} "dashboard.yaml"
 
-
-
 echo "SUCCESS"
