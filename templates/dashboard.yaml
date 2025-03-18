@@ -129,7 +129,7 @@ Resources:
     Type: AWS::CloudWatch::Dashboard
     Properties:
       DashboardName: Lone worker dashboard
-      DashboardBody:
+      DashboardBody: |
         {
             "widgets": [
                 {
