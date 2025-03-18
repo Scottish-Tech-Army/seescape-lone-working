@@ -6,6 +6,8 @@ METRIC_MEETINGS_CHECKED = "MeetingsChecked"
 METRIC_CHECKINS_MISSED = "CheckinsMissed"
 METRIC_CHECKOUTS_MISSED = "CheckoutsMissed"
 
+ALL_METRICS = [METRIC_MEETINGS_CHECKED, METRIC_CHECKINS_MISSED, METRIC_CHECKOUTS_MISSED]
+
 logger = utils.get_logger()
 
 def send_warning_mail(manager, checkin, appointment):
@@ -136,7 +138,7 @@ def process_appointments(manager, appointments, checkin):
 
 def lambda_handler(event, context):
     """ Lambda Handler"""
-    manager = utils.LoneWorkerManager("Check")
+    manager = utils.LoneWorkerManager("Check", ALL_METRICS)
 
     # Read the relevant appointments from the calendar
     checkin_appointments, checkout_appointments = get_calendar_items(manager)

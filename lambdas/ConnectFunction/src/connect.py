@@ -16,9 +16,19 @@ METRIC_APPT_NOT_FOUND = "NoMatchingAppointment"
 METRIC_DUPLICATE_CALL = "DuplicateCall"
 METRIC_SUCCESS = "Success"
 
+ALL_METRICS = [
+    METRIC_CHECKINS,
+    METRIC_CHECKOUTS,
+    METRIC_EMERGENCY,
+    METRIC_UNKNOWN_CALLER,
+    METRIC_APPT_NOT_FOUND,
+    METRIC_DUPLICATE_CALL,
+    METRIC_SUCCESS,
+]
+
 logger = utils.get_logger()
 
-def getCalendar(manager, action):
+def get_calendar(manager, action):
     """
     Get Calendar items from the MS Graph API
 
@@ -181,7 +191,7 @@ def process_appointments(manager, appointments, addresses, action):
 def lambda_handler(event, context):
     """ Lambda Handler"""
     logger.info("Received call to handle")
-    manager = utils.LoneWorkerManager("Connect")
+    manager = utils.LoneWorkerManager("Connect", ALL_METRICS)
     resultMap = {}
 
     action = event['Details']['Parameters']['buttonpressed']
@@ -228,7 +238,7 @@ def lambda_handler(event, context):
     if action == KEY_CHECK_IN or action == KEY_CHECK_OUT:
         if addresses:
             logger.info("Check-in or out action selected")
-            appointments = getCalendar(manager, action)
+            appointments = get_calendar(manager, action)
             success, message = process_appointments(manager, appointments, addresses, action)
             if success:
                 manager.increment_counter(METRIC_SUCCESS)
@@ -252,7 +262,7 @@ def lambda_handler(event, context):
 
         if addresses:
             logger.info("Emergency mail sent - add emergency tag to meeting or meetings that may match")
-            appointments = getCalendar(manager, action)
+            appointments = get_calendar(manager, action)
             # We do not use the message we get back here except to log it; we do try to update the meeting, but cannot do more than that.
             success, unused_message = process_appointments(manager, appointments, addresses, action)
             logger.info("Got message from appointments: %s", unused_message)

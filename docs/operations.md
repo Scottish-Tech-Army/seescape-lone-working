@@ -83,6 +83,8 @@ You can find logs, dashboards and metrics under CloudWatch.
 
 - Go to CloudWatch (enter `CloudWatch` in the search bar if necessary).
 
-- You should see a dashboard (the `loneworker` dashboard) with metrics.
+- The dashboard is named with the value of `${APP}`, which is normally `loneworker`. This shows how many calls to the Lambda functions of different types have occurred.
 
 - You should also be able to find logs for all calls to the lambda functions.
+
+
