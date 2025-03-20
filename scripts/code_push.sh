@@ -52,7 +52,7 @@ do
     aws lambda update-function-configuration --function-name ${TARGET} --layers ${VERSION}
 done
 
-# This generates a new layer every time it runs. Tidy up old layers; we do not care about them.
+# The above generates a new layer every time it runs. Tidy up old layers; we do not care about them.
 echo "Tidy up layers ${LAYER_NUMBERS}"
 for NUMBER in ${LAYER_NUMBERS}
 do
@@ -60,18 +60,11 @@ do
     aws lambda delete-layer-version --layer-name ${LAYER_NAME} --version-number ${NUMBER}
 done
 
-# If CONCURRENCY is 0, then drop out
-if [ "${CONCURRENCY}" -eq 0 ]; then
-    echo "CONCURRENCY is 0, stopping without setting up concurrency."
-    echo "SUCCESS"
-    exit 0
-fi
-
 # Now set up concurrency for the ConnectFunction. We do not care about CheckFunction (that is async)
-echo "Update concurrency for ConnectFunction (only)"
+echo "Update concurrency for ConnectFunction (only) to ${CONCURRENCY}"
 FUNCTION_VERSIONS=$(aws lambda list-versions-by-function --function-name ConnectFunction | jq -r '.Versions | map(.Version) | sort | join(" ")')
 echo "  existing versions ${FUNCTION_VERSIONS}"
-for VERSION in $(echo ${FUNCTION_VERSIONS} | awk '{for(i=2;i<NF;i++) printf $i " ";}')
+for VERSION in $(echo ${FUNCTION_VERSIONS} | awk '{for(i=2; i<=NF;i++) printf $i " ";}')
 do
     echo "  remove version ${VERSION}"
     aws lambda delete-function --function-name ConnectFunction --qualifier ${VERSION}
@@ -79,8 +72,15 @@ done
 
 VERSION=$(aws lambda publish-version --function-name ConnectFunction | jq ".Version" -r)
 echo "  published version ${VERSION}"
-aws lambda put-provisioned-concurrency-config --function-name ConnectFunction \
-  --qualifier ${VERSION} \
-  --provisioned-concurrent-executions ${CONCURRENCY}
+
+if [ "${CONCURRENCY}" -eq 0 ]; then
+    # Concurrency can get defaulted to 1
+    aws lambda delete-provisioned-concurrency-config --function-name ConnectFunction \
+        --qualifier ${VERSION}
+else
+    aws lambda put-provisioned-concurrency-config --function-name ConnectFunction \
+        --qualifier ${VERSION} \
+        --provisioned-concurrent-executions ${CONCURRENCY}
+fi
 
 echo "SUCCESS"
