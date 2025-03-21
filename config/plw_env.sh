@@ -11,10 +11,6 @@ export CONFIG_FILE=plw.yaml
 export BUCKET_NAME=plw-test-bucket # S3 bucket used for lambda storage
 export ENVIRONMENT=plw             # Environment name, used in some tags
 
-# OAuth2 flow in use. See the docs if you do not understand this. Valid values are
-# "client" and "ropc".
-export OAUTH2_FLOW=client
-
 # Number of reserved instances for performance. A good value is normally 1 or 2,
 # but you can set it to 0 if AWS quotas are preventing it working.
 export CONCURRENCY=0
