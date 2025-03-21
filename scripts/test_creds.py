@@ -5,6 +5,7 @@ import requests
 import os
 from urllib.parse import quote
 import json
+import jwt
 
 # Get some credentials
 def get_token(client_id, client_secret, tenant_id, scope):
@@ -108,11 +109,16 @@ if user is None:
 
 scope = 'https://graph.microsoft.com/.default' # Must use this for client credentials
 
-print("Here we go")
+print("Get token")
 token_response = get_token(client_id, client_secret, tenant_id, scope)
-print(token_response)
+print(json.dumps(token_response, indent=4))
 token = token_response["access_token"]
-print(f"token: {token}")
+
+# Decode without verifying the signature by setting options accordingly
+decoded = jwt.decode(token, options={"verify_signature": False})
+
+print("Decoded JWT:")
+print(json.dumps(decoded, indent=4))
 
 HEADERS = {
     'Authorization': 'Bearer ' + token,
@@ -122,7 +128,7 @@ HEADERS = {
 
 print("Get calendar")
 calendar_response = get_calendar(user)
-print(calendar_response)
+print(json.dumps(calendar_response, indent=4))
 
 print("Get events")
 calendar_events = get_calendar_events(user)

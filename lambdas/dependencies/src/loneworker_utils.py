@@ -73,27 +73,17 @@ class LoneWorkerManager:
         # Read configuration from the environment
         ssm = boto3.client('ssm')
         self.app_prefix = os.environ['ssm_prefix']
-        mand_names = ["clientid", "emailuser", "tenant", "config"]
-        optional_names = ["clientsecret", "emailpass"]
+        mand_names = ["clientid", "emailuser", "tenant", "config", "clientsecret"]
+        optional_names = []
         values = get_params(ssm, self.app_prefix, mand_names=mand_names, optional_names=optional_names)
 
         self.client_id = values["clientid"]
         self.client_secret = values["clientsecret"]
         self.username = values["emailuser"]
-        self.password = values["emailpass"]
         self.tenant = values["tenant"]
 
         # Trace some things.
         logger.info("Tenant: %s, Client ID: %s, username: %s", self.tenant, self.client_id, self.username)
-
-        if not self.password and not self.client_secret:
-            logger.error("Both clientid and emailpass are missing or blank - that is not permitted")
-            raise ValueError("Both clientid and emailpass are missing or blank - that is not permitted")
-
-        if self.password:
-            logger.info("Password defined - using ROPC flow")
-        else:
-            logger.info("Password not defined - using ROPC flow")
 
         # More config in the config blob.
         logger.info("Validate configuration")
@@ -118,19 +108,10 @@ class LoneWorkerManager:
             'username': self.username
         }
 
-        if self.password:
-            logger.info("ROPC flow")
-            payload['password'] = self.password
-            payload['grant_type'] = 'password'
-            scopes = ['https://graph.microsoft.com/Calendars.ReadWrite',
-                      'https://graph.microsoft.com/Mail.Send',
-                      'https://graph.microsoft.com/Contacts.Read' ]
-            payload['scope'] = "%20".join(scopes)
-        else:
-            logger.info("Client credentials flow")
-            payload['client_secret'] = self.client_secret
-            payload['grant_type'] = 'client_credentials'
-            payload['scope'] = 'https://graph.microsoft.com/.default'
+        logger.info("Client credentials flow")
+        payload['client_secret'] = self.client_secret
+        payload['grant_type'] = 'client_credentials'
+        payload['scope'] = 'https://graph.microsoft.com/.default'
 
         # Send the token request
         response = requests.post(auth_endpoint, data=payload)
