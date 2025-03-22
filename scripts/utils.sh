@@ -12,10 +12,12 @@ create_or_update_stack() {
     # - Stack name
     # - YAML file (in the templates directory)
     # - extra args (such as capabilities) - optional
+    # - extra parameters (in key=x,value=y format - optional)
     # Sets the value to be performed - either "create-stack" or "update-stack" - in the variable OPERATION
     local STACK_NAME=$1
     local YAML_FILE=$2
     local EXTRA_ARGS=${3:-""}
+    local EXTRA_PARAMS=${4:-""}
     echo "Creating or updating stack ${STACK_NAME}"
     if ! aws cloudformation describe-stacks --stack-name ${STACK_NAME} > /dev/null 2>&1
     then
@@ -29,7 +31,7 @@ create_or_update_stack() {
     aws cloudformation ${OPERATION} --stack-name ${STACK_NAME} \
                                     --template-body file://templates/${YAML_FILE} \
                                     ${EXTRA_ARGS} \
-                                    --parameters ${PARAMETERS} \
+                                    --parameters ${PARAMETERS} ${EXTRA_PARAMS}\
                                     --tags ${TAGS}
 
     aws cloudformation describe-stacks --stack-name ${STACK_NAME}
