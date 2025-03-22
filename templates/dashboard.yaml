@@ -11,6 +11,9 @@ Parameters:
   app:
     Type: String
     Description: App name used for tagging and naming
+  date:
+    Type: String
+    Description: Date now
 Resources:
   ConnectFunctionErrorAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -131,8 +134,7 @@ Resources:
       DashboardName:
         Fn::Sub: "${app}"
       DashboardBody:
-        Fn::Sub:
-          - |
+        Fn::Sub: |
             {
                 "widgets": [
                     {
@@ -244,13 +246,13 @@ Resources:
                         "properties": {
                             "title": "Issues in past 12 hours",
                             "alarms": [
-                                "${MissedCheckinsAlarm}",
-                                "${EmergencyCallsAlarm}",
-                                "${MissedCheckoutsAlarm}",
-                                "${ConnectFunctionErrorAlarm}",
-                                "${ConnectFunctionThrottleAlarm}",
-                                "${CheckFunctionErrorAlarm}",
-                                "${CheckFunctionThrottleAlarm}"
+                                "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${MissedCheckinsAlarm}",
+                                "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${MissedCheckoutsAlarm}",
+                                "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${EmergencyCallsAlarm}",
+                                "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${ConnectFunctionErrorAlarm}",
+                                "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${ConnectFunctionThrottleAlarm}",
+                                "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${CheckFunctionErrorAlarm}",
+                                "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${CheckFunctionThrottleAlarm}"
                             ]
                         }
                     },
@@ -275,16 +277,16 @@ Resources:
                             "setPeriodToTimeRange": true,
                             "trend": false
                         }
+                    },
+                    {
+                        "type": "text",
+                        "x": 12,
+                        "y": 9,
+                        "width": 6,
+                        "height": 5,
+                        "properties": {
+                            "markdown": "This dashboard shows the following.\n\n- Total number of missed calls and emergencies in the time period covered.\n- Whether there were any alarms (serious errors) in the past 12 hours.\n- Graphs of rates of operations and metrics as counters per 900 second period over the period covered.\n\n\nThe dashboard was last updated ${date}.\n"
+                        }
                     }
                 ]
-            }
-          - {
-              app: !Ref app,
-              MissedCheckinsAlarm: !Join [ "", [ "arn:aws:cloudwatch:", { "Ref": "AWS::Region" }, ":", { "Ref": "AWS::AccountId" }, ":alarm:", { "Ref": "MissedCheckinsAlarm" } ] ],
-              EmergencyCallsAlarm: !Join [ "", [ "arn:aws:cloudwatch:", { "Ref": "AWS::Region" }, ":", { "Ref": "AWS::AccountId" }, ":alarm:", { "Ref": "EmergencyCallsAlarm" } ] ],
-              MissedCheckoutsAlarm: !Join [ "", [ "arn:aws:cloudwatch:", { "Ref": "AWS::Region" }, ":", { "Ref": "AWS::AccountId" }, ":alarm:", { "Ref": "MissedCheckoutsAlarm" } ] ],
-              ConnectFunctionErrorAlarm: !Join [ "", [ "arn:aws:cloudwatch:", { "Ref": "AWS::Region" }, ":", { "Ref": "AWS::AccountId" }, ":alarm:", { "Ref": "ConnectFunctionErrorAlarm" } ] ],
-              ConnectFunctionThrottleAlarm: !Join [ "", [ "arn:aws:cloudwatch:", { "Ref": "AWS::Region" }, ":", { "Ref": "AWS::AccountId" }, ":alarm:", { "Ref": "ConnectFunctionThrottleAlarm" } ] ],
-              CheckFunctionErrorAlarm: !Join [ "", [ "arn:aws:cloudwatch:", { "Ref": "AWS::Region" }, ":", { "Ref": "AWS::AccountId" }, ":alarm:", { "Ref": "CheckFunctionErrorAlarm" } ] ],
-              CheckFunctionThrottleAlarm: !Join [ "", [ "arn:aws:cloudwatch:", { "Ref": "AWS::Region" }, ":", { "Ref": "AWS::AccountId" }, ":alarm:", { "Ref": "CheckFunctionThrottleAlarm" } ] ]
             }
