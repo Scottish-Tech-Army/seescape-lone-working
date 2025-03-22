@@ -14,6 +14,11 @@ Parameters:
   date:
     Type: String
     Description: Date now
+  statsInterval:
+    # In seconds; how frequently we update our stats for graphs (not for alarms, because reasons)
+    # Do not set less than 15 minutes or the graphs get confusing.
+    Type: Number
+    Default: 900
 Resources:
   ConnectFunctionErrorAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -153,7 +158,8 @@ Resources:
                             "view": "timeSeries",
                             "stacked": false,
                             "region": "${AWS::Region}",
-                            "period": 900,
+                            "period": ${statsInterval},
+                            "liveData": true,
                             "stat": "Sum",
                             "title": "Connect function invocations and errors"
                         }
@@ -178,7 +184,8 @@ Resources:
                             "stacked": false,
                             "region": "${AWS::Region}",
                             "title": "Check function invocations and errors",
-                            "period": 900,
+                            "period": ${statsInterval},
+                            "liveData": true,
                             "stat": "Sum"
                         }
                     },
@@ -209,7 +216,8 @@ Resources:
                             "stacked": false,
                             "region": "${AWS::Region}",
                             "title": "Connect function results",
-                            "period": 900,
+                            "period": ${statsInterval},
+                            "liveData": true,
                             "stat": "Sum"
                         }
                     },
@@ -233,7 +241,8 @@ Resources:
                             "stacked": false,
                             "region": "${AWS::Region}",
                             "title": "Check function results",
-                            "period": 900,
+                            "period": ${statsInterval},
+                            "liveData": true,
                             "stat": "Sum"
                         }
                     },
@@ -273,10 +282,10 @@ Resources:
                             "sparkline": false,
                             "view": "singleValue",
                             "region": "${AWS::Region}",
-                            "period": 300,
                             "stat": "Sum",
                             "title": "Missed calls and emergencies",
                             "setPeriodToTimeRange": true,
+                            "liveData": true,
                             "trend": false
                         }
                     },
@@ -287,7 +296,7 @@ Resources:
                         "width": 6,
                         "height": 5,
                         "properties": {
-                            "markdown": "This dashboard shows the following.\n\n- Total number of missed calls, emergencies, errors and throttles in the time period covered.\n- Whether there were any alarms (serious errors) in the past 12 hours.\n- Graphs of rates of operations and metrics as counters per 900 second period over the period covered.\n\n\nThe dashboard was last updated ${date}.\n"
+                            "markdown": "This dashboard shows the following.\n\n- Total number of missed calls, emergencies, errors and throttles in the time period covered.\n- Whether there were any alarms (serious errors) in the past 12 hours.\n- Graphs of rates of operations and metrics as counters per ${statsInterval} second period over the period covered.\n\n\nThe dashboard was last updated ${date}.\n"
                         }
                     }
                 ]

@@ -23,8 +23,8 @@ class TestLoneworkerUtils(unittest.TestCase):
         past_min = 10
         future_min = 20
         time_filter = [
-            loneworker_utils.TimeFilter(past_min, "after", "start"),
-            loneworker_utils.TimeFilter(future_min, "before", "start")
+            loneworker_utils.TimeFilter(minutes=past_min, before_or_after="after", start_or_end="start"),
+            loneworker_utils.TimeFilter(minutes=future_min, before_or_after="before", start_or_end="start")
         ]
         filter_str = loneworker_utils.build_time_filter(time_filter)
         # Check that the filter string mentions "start/dateTime" and today's date.
@@ -35,11 +35,11 @@ class TestLoneworkerUtils(unittest.TestCase):
     def test_build_time_filter_end(self):
         past_min = 5
         future_min = 15
-        time_filter = [
-            loneworker_utils.TimeFilter(past_min, "after", "end"),
-            loneworker_utils.TimeFilter(future_min, "before", "end")
+        time_filters = [
+            loneworker_utils.TimeFilter(minutes=past_min, before_or_after="after", start_or_end="end"),
+            loneworker_utils.TimeFilter(minutes=future_min, before_or_after="before", start_or_end="end")
         ]
-        filter_str = loneworker_utils.build_time_filter(time_filter)
+        filter_str = loneworker_utils.build_time_filter(time_filters)
         # Check that the filter string mentions "end/dateTime" and today's date.
         # Check that the filter string mentions "end/dateTime" and today's date.
         today = datetime.now().strftime('%Y-%m-%d')
@@ -54,14 +54,14 @@ class TestLoneworkerUtils(unittest.TestCase):
         future_min = 20
         with self.assertRaises(ValueError):
             loneworker_utils.build_time_filter([
-                loneworker_utils.TimeFilter(past_min, "after", "invalid"),
-                loneworker_utils.TimeFilter(future_min, "before", "invalid")
+                loneworker_utils.TimeFilter(minutes=past_min, before_or_after="after", start_or_end="invalid"),
+                loneworker_utils.TimeFilter(minutes=future_min, before_or_after="before", start_or_end="invalid")
             ])
 
         with self.assertRaises(ValueError):
             loneworker_utils.build_time_filter([
-                loneworker_utils.TimeFilter(past_min, "after", "start"),
-                loneworker_utils.TimeFilter(future_min, "invalid", "end")
+                loneworker_utils.TimeFilter(minutes=past_min, before_or_after="after", start_or_end="start"),
+                loneworker_utils.TimeFilter(minutes=future_min, before_or_after="invalid", start_or_end="end")
             ])
 
 if __name__ == '__main__':

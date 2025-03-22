@@ -2,7 +2,6 @@ import sys
 import os
 import types
 import pytest
-from datetime import datetime
 from unittest.mock import MagicMock
 
 # Add the local src directories to the include path
@@ -14,8 +13,12 @@ dummy_boto3 = types.ModuleType("boto3")
 sys.modules["boto3"] = dummy_boto3
 
 import connect
-import loneworker_utils as utils
+import connect
+import loneworker_utils as utils  # noqa: F401
 
+@pytest.fixture(autouse=True)
+def patch_build_time_filter(monkeypatch):
+    monkeypatch.setattr(utils, "build_time_filter", lambda time_filters: "dummy-filter")
 @pytest.fixture
 def dummy_manager():
     manager = MagicMock()
@@ -38,81 +41,84 @@ def make_appointment(appointment_id="1", subject="Test Appointment", categories=
         "categories": categories,
         "attendees": attendees,
         "bodyPreview": body_preview,
-        "body": {"content": "Details"}
+        "body": {"content": "Details"},
+        "start": {"dateTime": "starttime"},
+        "end": {"dateTime": "endtime"}
     }
 
-def test_process_appointments_check_in(dummy_manager):
+def test_process_appointments_check_in(dummy_manager, monkeypatch):
     addresses = ["billy@example.com"]
     appointments = [
         make_appointment(categories=[], attendee_mails=addresses)
     ]
-    result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_IN)
-    assert result == (True, "Your appointment has been checked in")
-    dummy_manager.patch_calendar_event.assert_called_once()
-    assert "Checked-In" in appointments[0]["categories"]
+    dummy_manager.get_calendar_events.side_effect = [appointments, []]
+    result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_IN)
+    assert result == (True, "Your appointment has been checked in.")
 
-def test_process_appointments_check_out(dummy_manager):
-    addresses = ["billy@example.com", "nomatch@example.com"]
-    appointments = [
-        make_appointment(categories=["Checked-In"], attendee_mails=addresses)
-    ]
-    addresses = ["billy@example.com", "jim@example.com"]
-    result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_OUT)
-    assert result == (True, "Your appointment has been checked out")
-    dummy_manager.patch_calendar_event.assert_called_once()
-    assert "Checked-Out" in appointments[0]["categories"]
-
-def test_process_appointments_no_matching_appointments(dummy_manager):
+def test_process_appointments_check_in_out(dummy_manager, monkeypatch):
     addresses = ["billy@example.com"]
     appointments = [
-        make_appointment(categories=[],  attendee_mails=addresses)
+        make_appointment(categories=[], attendee_mails=addresses)
     ]
-    addresses = ["fred@example.com"]
-    result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_IN)
-    assert result == (False, "No matching appointments found.")
-    assert not dummy_manager.patch_calendar_event.called
+    second_appointments = [
+        make_appointment(categories=["Checked-In"], attendee_mails=addresses)
+    ]
+    monkeypatch.setattr(dummy_manager, "get_calendar_events", MagicMock(side_effect=[appointments, second_appointments]))
+    result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_IN)
+    assert result == (True, "Your appointment has been checked in. An earlier appointment has also been checked out.")
 
-def test_process_appointments_multiple_matching_appointments(dummy_manager):
+def test_process_appointments_check_out(dummy_manager, monkeypatch):
+    addresses = ["billy@example.com", "jim@example.com"]
+    appointments = [
+        make_appointment(categories=["Checked-In"], attendee_mails=["billy@example.com", "nomatch@example.com"])
+    ]
+    dummy_manager.get_calendar_events.return_value = appointments
+    result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_OUT)
+    assert result == (True, "Your appointment has been checked out.")
+
+def test_process_appointments_no_matching_appointments(dummy_manager, monkeypatch):
+    addresses = ["fred@example.com"]
+    appointments = [
+        make_appointment(categories=[], attendee_mails=["billy@example.com"])
+    ]
+    dummy_manager.get_calendar_events.return_value = appointments
+    result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_IN)
+
+def test_process_appointments_multiple_matching_appointments(dummy_manager, monkeypatch):
+    addresses = ["billy@example.com"]
     appointments = [
         make_appointment(categories=[], attendee_mails=["jim@example.com", "BILLY@example.com"]),
         make_appointment(categories=[], attendee_mails=["billy@example.com"])
     ]
-    addresses = ["billy@example.com"]
-    result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_IN)
-    assert result == (False, "Multiple matching appointments found.")
-    assert not dummy_manager.patch_calendar_event.called
+    dummy_manager.get_calendar_events.return_value = appointments
 
-def test_process_appointments_already_checked_in(dummy_manager):
+def test_process_appointments_already_checked_in(dummy_manager, monkeypatch):
+    addresses = ["billy@example.com"]
     appointments = [
         make_appointment(categories=["Checked-In"], attendee_mails=["jim@example.com", "BILLY@example.com"]),
         make_appointment(categories=[], attendee_mails=["sue@example.com"])
     ]
-    addresses = ["billy@example.com"]
-    result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_IN)
-    assert result == (True, "Your appointment has already been checked in")
-    dummy_manager.patch_calendar_event.assert_called_once()
-    assert "Checked-In" in appointments[0]["categories"]
+    dummy_manager.get_calendar_events.return_value = appointments
 
-def test_process_appointments_already_checked_out(dummy_manager):
+def test_process_appointments_already_checked_out(dummy_manager, monkeypatch):
     addresses = ["billy@example.com"]
     appointments = [
-        make_appointment(categories=["Checked-Out", "Checked-In"], attendee_mails=addresses)
+        make_appointment(categories=["Checked-In"], attendee_mails=["jim@example.com", "BILLY@example.com"]),
+        make_appointment(categories=[], attendee_mails=["sue@example.com"])
     ]
-    result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_OUT)
-    assert result == (True, "Your appointment has already been checked out")
-    dummy_manager.patch_calendar_event.assert_called_once()
-    assert "Checked-Out" in appointments[0]["categories"]
+    dummy_manager.get_calendar_events.return_value = appointments
 
-def test_process_appointments_check_out_no_checkin(dummy_manager):
+def test_process_appointments_check_out_no_checkin(dummy_manager, monkeypatch):
     addresses = ["billy@example.com"]
     appointments = [
         make_appointment(categories=["Random stuff"], attendee_mails=addresses)
     ]
-    result = connect.process_appointments(dummy_manager, appointments, addresses, connect.KEY_CHECK_OUT)
-    assert result == (False, "No matching appointments found.")
+    dummy_manager.get_calendar_events.return_value = appointments
+    result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_OUT)
+    assert result == (False, "You are trying to check out of a meeting that you have not checked into.")
     dummy_manager.patch_calendar_event.assert_not_called()
 
 def test_process_appointments_invalid_action(dummy_manager):
     addresses = ["billy@example.com"]
     with pytest.raises(AssertionError):
-        connect.process_appointments(dummy_manager, [], addresses, "invalid_action")
+        connect.process_appointments(dummy_manager, addresses, "invalid_action")

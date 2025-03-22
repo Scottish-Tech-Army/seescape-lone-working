@@ -5,6 +5,7 @@ Module containing common utility functions for the loneworker lambda functions.
 import boto3
 from collections import namedtuple
 from datetime import datetime, timedelta
+import datetime as dt
 import logging
 import os
 import requests
@@ -356,28 +357,37 @@ def get_params(ssm, prefix, mand_names, optional_names=[]):
 
     return results
 
-TimeFilter = namedtuple('TimeFilter', ['minutes', 'before_or_after', 'start_or_end'])
+class TimeFilter:
+    def __init__(self, minutes=None, datetime=None, before_or_after=None, start_or_end=None):
+        if (minutes is None and datetime is None) or (minutes is not None and datetime is not None):
+            raise ValueError("Exactly one of 'minutes' or 'datetime' must be provided.")
+        self.minutes = minutes
+        self.datetime = datetime
+        self.before_or_after = before_or_after
+        self.start_or_end = start_or_end
+        if datetime:
+            self.explicit = True
+        else:
+            self.explicit = False
 
 def build_time_filter(time_filters):
     """
-    Given an array of TimeFilters, build a string filter for Microsoft graph APIs that
-    compares the timestamp in a meeting with provided data. Each value in time_filters is
-    a separate clause, and they are all stuck together with "and" statements.
+    Given an array of TimeFilters, build a string filter for Microsoft graph APIs
+    that compares the timestamp in a meeting with provided data. Each value in
+    time_filters is a separate clause, and they are all stuck together with
+    "and" statements.
 
     For each time filter.
     - "minutes" is the number of minutes the test time should be after the current time (negative for past)
+    - "datetime" is the explicit time to test. Only one of minutes and datetime may be specified. This
+      must be a Microsoft Graph dateTime string, which will be passed unchanged (not a datetime object).
     - "before_or_after" checks whether the test should be for appointment times that are before or after that time
     - "start_or_end" tests whether it is the appointment start or end time that is being compared.
 
     """
     logger.info("Number of clauses in time filter: %d", len(time_filters))
     clauses = []
-    current_time = datetime.now()
-
-    # Get the current date
-    # TODO: this will not cope with times that go past midnight.
-    # TODO: I hope this copes cleanly with timezones; need to double check and test.
-    today = datetime.now().strftime('%Y-%m-%d')
+    current_time = datetime.now(dt.timezone.utc)
 
     for time_filter in time_filters:
         if time_filter.before_or_after not in [BEFORE, AFTER]:
@@ -385,11 +395,18 @@ def build_time_filter(time_filters):
         if time_filter.start_or_end not in [START, END]:
             raise ValueError(f"Start or end must be either '{START}' or '{END}' - provided value '{time_filter.start_or_end}'")
 
-        logger.info("Building a filter on %s time, checking that it is %s a time %d minutes from now",
-                    time_filter.start_or_end, time_filter.before_or_after, time_filter.minutes)
+        if time_filter.explicit:
+            logger.info("Building a filter on %s time, checking that it is %s an explicit time %s",
+                        time_filter.start_or_end, time_filter.before_or_after, time_filter.datetime)
+            formatted_datetime = time_filter.datetime
+        else:
+            logger.info("Building a filter on %s time, checking that it is %s a time %d minutes from now",
+                        time_filter.start_or_end, time_filter.before_or_after, time_filter.minutes)
 
-        # Calculate the modified time
-        modified_time = (current_time + timedelta(minutes=time_filter.minutes)).strftime("%H:%M:%S.%f")[:-3]
+            # Calculate the modified datetime
+            target_datetime = current_time + timedelta(minutes=time_filter.minutes)
+            formatted_datetime = target_datetime.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+
         if time_filter.before_or_after == BEFORE:
             # Check that appointment time is less than calculated time.
             g_or_l = "le"
@@ -397,7 +414,7 @@ def build_time_filter(time_filters):
             # Check that appointment time is greater than calculated time.
             g_or_l = "ge"
 
-        clauses.append(f"{time_filter.start_or_end}/dateTime {g_or_l} '{today}T{modified_time}Z'")
+        clauses.append(f"{time_filter.start_or_end}/dateTime {g_or_l} '{formatted_datetime}'")
 
     filter_str = " and ".join(clauses)
     logger.info("Resulting filter: %s", filter_str)
