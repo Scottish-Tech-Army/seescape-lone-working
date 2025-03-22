@@ -145,14 +145,14 @@ Resources:
                         "type": "metric",
                         "properties": {
                             "metrics": [
-                                [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "eu-west-2", "visible": false } ],
-                                [ ".", "Errors", ".", ".", { "region": "eu-west-2", "visible": false } ],
-                                [ "...", "ConnectFunction", { "region": "eu-west-2", "color": "#d62728" } ],
-                                [ ".", "Invocations", ".", ".", { "region": "eu-west-2", "color": "#2ca02c" } ]
+                                [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "${AWS::Region}", "visible": false } ],
+                                [ ".", "Errors", ".", ".", { "region": "${AWS::Region}", "visible": false } ],
+                                [ "...", "ConnectFunction", { "region": "${AWS::Region}", "color": "#d62728" } ],
+                                [ ".", "Invocations", ".", ".", { "region": "${AWS::Region}", "color": "#2ca02c" } ]
                             ],
                             "view": "timeSeries",
                             "stacked": false,
-                            "region": "eu-west-2",
+                            "region": "${AWS::Region}",
                             "period": 900,
                             "stat": "Sum",
                             "title": "Connect function invocations and errors"
@@ -166,17 +166,17 @@ Resources:
                         "type": "metric",
                         "properties": {
                             "metrics": [
-                                [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "eu-west-2", "color": "#2ca02c" } ],
-                                [ ".", "Errors", ".", ".", { "region": "eu-west-2", "color": "#d62728" } ],
-                                [ "...", "ConnectFunction", { "region": "eu-west-2", "visible": false } ],
-                                [ ".", "Invocations", ".", ".", { "region": "eu-west-2", "visible": false } ],
-                                [ "${app}/Check", "CheckinsMissed", { "region": "eu-west-2", "visible": false } ],
-                                [ ".", "CheckoutsMissed", { "region": "eu-west-2", "visible": false } ],
-                                [ ".", "MeetingsChecked", { "region": "eu-west-2", "visible": false } ]
+                                [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "${AWS::Region}", "color": "#2ca02c" } ],
+                                [ ".", "Errors", ".", ".", { "region": "${AWS::Region}", "color": "#d62728" } ],
+                                [ "...", "ConnectFunction", { "region": "${AWS::Region}", "visible": false } ],
+                                [ ".", "Invocations", ".", ".", { "region": "${AWS::Region}", "visible": false } ],
+                                [ "${app}/Check", "CheckinsMissed", { "region": "${AWS::Region}", "visible": false } ],
+                                [ ".", "CheckoutsMissed", { "region": "${AWS::Region}", "visible": false } ],
+                                [ ".", "MeetingsChecked", { "region": "${AWS::Region}", "visible": false } ]
                             ],
                             "view": "timeSeries",
                             "stacked": false,
-                            "region": "eu-west-2",
+                            "region": "${AWS::Region}",
                             "title": "Check function invocations and errors",
                             "period": 900,
                             "stat": "Sum"
@@ -190,24 +190,24 @@ Resources:
                         "type": "metric",
                         "properties": {
                             "metrics": [
-                                [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "eu-west-2", "color": "#2ca02c", "visible": false } ],
-                                [ ".", "Errors", ".", ".", { "region": "eu-west-2", "color": "#d62728", "visible": false } ],
-                                [ "...", "ConnectFunction", { "region": "eu-west-2", "color": "#d62728", "visible": false } ],
-                                [ ".", "Invocations", ".", ".", { "region": "eu-west-2", "color": "#c49c94", "visible": false } ],
-                                [ "${app}/Check", "CheckinsMissed", { "region": "eu-west-2", "visible": false } ],
-                                [ ".", "CheckoutsMissed", { "region": "eu-west-2", "visible": false } ],
-                                [ ".", "MeetingsChecked", { "region": "eu-west-2", "visible": false } ],
-                                [ "${app}/Connect", "NoMatchingAppointment", { "region": "eu-west-2" } ],
-                                [ ".", "Checkins", { "region": "eu-west-2" } ],
-                                [ ".", "Emergencies", { "region": "eu-west-2" } ],
-                                [ ".", "Checkouts", { "region": "eu-west-2" } ],
-                                [ ".", "DuplicateCall", { "region": "eu-west-2" } ],
-                                [ ".", "Success", { "region": "eu-west-2" } ],
-                                [ ".", "UnknownCaller", { "region": "eu-west-2" } ]
+                                [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "${AWS::Region}", "color": "#2ca02c", "visible": false } ],
+                                [ ".", "Errors", ".", ".", { "region": "${AWS::Region}", "color": "#d62728", "visible": false } ],
+                                [ "...", "ConnectFunction", { "region": "${AWS::Region}", "color": "#d62728", "visible": false } ],
+                                [ ".", "Invocations", ".", ".", { "region": "${AWS::Region}", "color": "#c49c94", "visible": false } ],
+                                [ "${app}/Check", "CheckinsMissed", { "region": "${AWS::Region}", "visible": false } ],
+                                [ ".", "CheckoutsMissed", { "region": "${AWS::Region}", "visible": false } ],
+                                [ ".", "MeetingsChecked", { "region": "${AWS::Region}", "visible": false } ],
+                                [ "${app}/Connect", "NoMatchingAppointment", { "region": "${AWS::Region}" } ],
+                                [ ".", "Checkins", { "region": "${AWS::Region}" } ],
+                                [ ".", "Emergencies", { "region": "${AWS::Region}" } ],
+                                [ ".", "Checkouts", { "region": "${AWS::Region}" } ],
+                                [ ".", "DuplicateCall", { "region": "${AWS::Region}" } ],
+                                [ ".", "Success", { "region": "${AWS::Region}" } ],
+                                [ ".", "UnknownCaller", { "region": "${AWS::Region}" } ]
                             ],
                             "view": "timeSeries",
                             "stacked": false,
-                            "region": "eu-west-2",
+                            "region": "${AWS::Region}",
                             "title": "Connect function results",
                             "period": 900,
                             "stat": "Sum"
@@ -221,17 +221,17 @@ Resources:
                         "type": "metric",
                         "properties": {
                             "metrics": [
-                                [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "eu-west-2", "color": "#2ca02c", "visible": false } ],
-                                [ ".", "Errors", ".", ".", { "region": "eu-west-2", "color": "#d62728", "visible": false } ],
-                                [ "...", "ConnectFunction", { "region": "eu-west-2", "visible": false } ],
-                                [ ".", "Invocations", ".", ".", { "region": "eu-west-2", "visible": false } ],
-                                [ "${app}/Check", "CheckinsMissed", { "region": "eu-west-2" } ],
-                                [ ".", "CheckoutsMissed", { "region": "eu-west-2" } ],
-                                [ ".", "MeetingsChecked", { "region": "eu-west-2" } ]
+                                [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "${AWS::Region}", "color": "#2ca02c", "visible": false } ],
+                                [ ".", "Errors", ".", ".", { "region": "${AWS::Region}", "color": "#d62728", "visible": false } ],
+                                [ "...", "ConnectFunction", { "region": "${AWS::Region}", "visible": false } ],
+                                [ ".", "Invocations", ".", ".", { "region": "${AWS::Region}", "visible": false } ],
+                                [ "${app}/Check", "CheckinsMissed", { "region": "${AWS::Region}" } ],
+                                [ ".", "CheckoutsMissed", { "region": "${AWS::Region}" } ],
+                                [ ".", "MeetingsChecked", { "region": "${AWS::Region}" } ]
                             ],
                             "view": "timeSeries",
                             "stacked": false,
-                            "region": "eu-west-2",
+                            "region": "${AWS::Region}",
                             "title": "Check function results",
                             "period": 900,
                             "stat": "Sum"
@@ -244,7 +244,7 @@ Resources:
                         "x": 12,
                         "type": "alarm",
                         "properties": {
-                            "title": "Issues in past 12 hours",
+                            "title": "Alarms in past 12 hours",
                             "alarms": [
                                 "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${MissedCheckinsAlarm}",
                                 "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${MissedCheckoutsAlarm}",
@@ -264,13 +264,15 @@ Resources:
                         "type": "metric",
                         "properties": {
                             "metrics": [
-                                [ "${app}/Connect", "Emergencies", { "region": "eu-west-2", "label": "Emergency calls" } ],
-                                [ "${app}/Check", "CheckinsMissed", { "region": "eu-west-2", "label": "Checkins missed" } ],
-                                [ ".", "CheckoutsMissed", { "region": "eu-west-2", "label": "Checkouts missed" } ]
+                                [ "${app}/Connect", "Emergencies", { "region": "${AWS::Region}", "label": "Emergency calls" } ],
+                                [ "${app}/Check", "CheckinsMissed", { "region": "${AWS::Region}", "label": "Checkins missed" } ],
+                                [ ".", "CheckoutsMissed", { "region": "${AWS::Region}", "label": "Checkouts missed" } ],
+                                [ "AWS/Lambda", "Errors" ],
+                                [ ".", "Throttles" ]
                             ],
                             "sparkline": false,
                             "view": "singleValue",
-                            "region": "eu-west-2",
+                            "region": "${AWS::Region}",
                             "period": 300,
                             "stat": "Sum",
                             "title": "Missed calls and emergencies",
@@ -285,7 +287,7 @@ Resources:
                         "width": 6,
                         "height": 5,
                         "properties": {
-                            "markdown": "This dashboard shows the following.\n\n- Total number of missed calls and emergencies in the time period covered.\n- Whether there were any alarms (serious errors) in the past 12 hours.\n- Graphs of rates of operations and metrics as counters per 900 second period over the period covered.\n\n\nThe dashboard was last updated ${date}.\n"
+                            "markdown": "This dashboard shows the following.\n\n- Total number of missed calls, emergencies, errors and throttles in the time period covered.\n- Whether there were any alarms (serious errors) in the past 12 hours.\n- Graphs of rates of operations and metrics as counters per 900 second period over the period covered.\n\n\nThe dashboard was last updated ${date}.\n"
                         }
                     }
                 ]
