@@ -28,13 +28,16 @@ ALL_METRICS = [
 
 logger = utils.get_logger()
 
-def get_calendar(manager, action):
+def get_calendar(manager, action, addresses, end_before=None):
     """
     Get Calendar items from the MS Graph API
 
     This code reads relevant events from the calendar of the configured user and returns them in an array.
+
+    If passed an explicit "end_before" (a datetime) then add to the usual logic a test that the
+    meeting end time is before (or equal to) that time.
     """
-    logger.info("Get calendar events - action %s", action)
+    logger.info("Get calendar events - action %s, end_before %s", action, end_before)
     app_cfg = manager.get_app_cfg()
 
     checkin_grace_min = app_cfg["checkin_grace_min"]
@@ -51,6 +54,7 @@ def get_calendar(manager, action):
         time_filters.append(utils.TimeFilter(minutes=-checkout_grace_min, before_or_after=utils.AFTER, start_or_end=utils.END))
         time_filters.append(utils.TimeFilter(minutes=checkout_grace_min, before_or_after=utils.BEFORE, start_or_end=utils.END))
     else:
+        assert action == KEY_EMERGENCY, f"Unexpected action value {action}"
         """
         Look for a meeting due to:
         - start before 30 (checkin_grace_min) minutes in the future
@@ -67,23 +71,88 @@ def get_calendar(manager, action):
 
         This might conceivably match multiple meetings.
         """
-        assert action == KEY_EMERGENCY, "Unexpected action value"
         time_filters.append(utils.TimeFilter(minutes=ignore_after_min, before_or_after=utils.BEFORE, start_or_end=utils.START))
         time_filters.append(utils.TimeFilter(minutes=-ignore_after_min, before_or_after=utils.AFTER, start_or_end=utils.END))
+
+    if end_before:
+        # Explicit end before.
+        logger.info("Explicit end before of %s", end_before)
+        time_filters.append(utils.TimeFilter(datetime=end_before, before_or_after=utils.BEFORE, start_or_end=utils.END))
 
     filter = utils.build_time_filter(time_filters)
 
     # Retrieve the appointments
     appointments = manager.get_calendar_events(filter)
+
+    # Filter out by address
+    matching_appointments = []
+    for appointment in appointments:
+        for attendee in appointment['attendees']:
+            address = attendee['emailAddress']['address'].lower()
+
+            if address in addresses:
+                logger.info("Match on address %s for meeting from %s to %s", address, appointment["start"], appointment["end"])
+                matching_appointments.append(appointment)
+                # No need to check any more attendees
+                break
+        else:
+            logger.debug("Ignoring appointment %s as no address match", appointment['subject'])
+            continue
+
+    appointments = matching_appointments
+
     return appointments
 
-def process_appointments(manager, appointments, addresses, action):
+def update_appointment(manager, appointment, action, ignore_already_done=False):
+    """
+    Update an appointment.
+
+    Real errors are raised by exception (as they all imply graph API errors).
+
+    Returns a flag "already_done" to indicate if the category was already present,
+    in which case nothing is done.
+    """
+    time_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    if action == KEY_CHECK_IN:
+        logger.info("Update checkin for appointment subject %s", appointment['subject'])
+        target_category = utils.CHECKED_IN
+        body_message = f"<p>Checked in by phone at {time_now}</p>\r\n"
+        message = "Your appointment has been checked in"
+    elif action == KEY_CHECK_OUT:
+        logger.info("Update checkout for appointment subject %s", appointment['subject'])
+        target_category = utils.CHECKED_OUT
+        body_message = f"<p>Checked out by phone at {time_now}</p>\r\n"
+        message = "Your appointment has been checked out"
+    else:
+        logger.info("Update emergency for appointment subject %s", appointment['subject'])
+        target_category = utils.EMERGENCY
+        body_message = f"<p>Emergency reported by phone at {time_now}</p>\r\n"
+        message = "Emergency call meeting found"
+
+    # Set the category
+    changes = {}
+    categories = appointment['categories']
+    if target_category in categories:
+        logger.info('Appointment already has %s category', target_category)
+        return True
+    categories.append(target_category)
+    changes['categories'] = categories
+
+    body = appointment['body']
+    body['content'] = body['content'].replace("</body>", f"{body_message}</body>")
+    changes['body'] = body
+    manager.patch_calendar_event(appointment['id'], changes)
+    logger.info("Appointment updated successfully")
+
+    return False
+
+def process_appointments(manager, addresses, action):
     """
     Process Appointments
 
-    This method runs through all appointments found in the previous step.
+    This method finds relevant appointments and runs through them all.
 
-    - It ignores all appointments that do not have "ID:staffid" in the body
     - If this is a checkin, then it changes the subject and categories of the appointment
     - If this is a checkout, it looks for a corresponding checked in appointment
 
@@ -91,51 +160,29 @@ def process_appointments(manager, appointments, addresses, action):
     """
     logger.info("Processing appointments list for action %s, addresses %s", action, addresses)
 
-    # Caller should check this, but being defensive.
-    assert action == KEY_CHECK_IN or action == KEY_CHECK_OUT or action == KEY_EMERGENCY, "Unexpected action value"
-
-    # Assume error to start with
+    # Assume error to start with, but set the default message for success.
     success = False
+    if action == KEY_CHECK_IN:
+        message = "Your appointment has been checked in."
+    elif action == KEY_CHECK_OUT:
+        message = "Your appointment has been checked out."
+    else:
+        # Caller should check these, but being defensive.
+        assert action == KEY_EMERGENCY, f"Unexpected action value {action}"
+        message = "Emergency appointment updated."
 
-    # We first ditch any appointments that do not match the staff ID.
-    matching_appointments = []
-    for appointment in appointments:
-        match = False
-        for attendee in appointment['attendees']:
-            address = attendee['emailAddress']['address'].lower()
+    appointments = get_calendar(manager, action, addresses)
 
-            if address in addresses:
-                logger.info("Match on address %s", address)
-                match = True
-                # No need to check any more attendees
-                continue
-
-        if not match:
-            logger.debug("Ignoring appointment %s as no address match", appointment['subject'])
-            continue
-
-        if action == KEY_CHECK_IN and utils.CHECKED_OUT in appointment['categories']:
-            # Cannot check into an appointment to which you have checked out
-            logger.info("Appointment checked out - try the next one: %s", appointment['subject'])
-            continue
-        if action == KEY_CHECK_OUT and utils.CHECKED_IN not in appointment['categories']:
-            # Cannot check out of an appointment to which you have not checked in
-            logger.info("Appointment not checked in - try the next one: %s", appointment['subject'])
-            continue
-        matching_appointments.append(appointment)
-
-    # We found the appointment to deal with. If there were multiple, we should give up now.
+    # We found the appointment to deal with. If there were multiple or none, we should give up now.
     # For an emergency, these are not important; nothing to do, and the message will be suppressed.
-    if len(matching_appointments) == 0:
+    if len(appointments) == 0:
         logger.info("No appointments found for this user")
-        if action != KEY_EMERGENCY:
-            manager.increment_counter(METRIC_APPT_NOT_FOUND)
-        else:
+        if action == KEY_EMERGENCY:
             # This is considered a success for an emergency call
             success = True
         return success, "No matching appointments found."
-    if len(matching_appointments) > 1:
-        logger.info("More than one appointment found for this user - count: %d", len(matching_appointments))
+    if len(appointments) > 1:
+        logger.info("More than one appointment found for this user - count: %d", len(appointments))
         if action != KEY_EMERGENCY:
             manager.increment_counter(METRIC_APPT_NOT_FOUND)
             return success, "Multiple matching appointments found."
@@ -143,28 +190,25 @@ def process_appointments(manager, appointments, addresses, action):
             # For an emergency call, we just process all matching meetings.
            logger.info("Emergency call - process all meetings")
 
-    time_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # Check if we are doing a checkin after checkout or a checkout without checkin
+    for appointment in appointments:
+        # Note for the logic below that we already checked the array is of length 1 if checkin/out
+        if action == KEY_CHECK_IN and utils.CHECKED_OUT in appointment['categories']:
+            # Cannot check into an appointment to which you have checked out
+            logger.info("Appointment checked out but trying to check in: %s", appointment['subject'])
+            return success, "You are trying to check into a meeting that you have checked out of."
+        if action == KEY_CHECK_OUT and utils.CHECKED_IN not in appointment['categories']:
+            # Cannot check out of an appointment to which you have not checked in
+            logger.info("Appointment not checked in but trying to check out: %s", appointment['subject'])
+            return success, "You are trying to check out of a meeting that you have not checked into."
 
-    if action == KEY_CHECK_IN:
-        target_category = utils.CHECKED_IN
-        body_message = f"<p>Checked in by phone at {time_now}</p>\r\n"
-        message = "Your appointment has been checked in"
-    elif action == KEY_CHECK_OUT:
-        target_category = utils.CHECKED_OUT
-        body_message = f"<p>Checked out by phone at {time_now}</p>\r\n"
-        message = "Your appointment has been checked out"
-    else:
-        target_category = utils.EMERGENCY
-        body_message = f"<p>Emergency reported by phone at {time_now}</p>\r\n"
-        message = "Emergency call meeting found"
-
-    while matching_appointments:
-        appointment = matching_appointments.pop()
+    already_done = False
+    while appointments:
+        appointment = appointments.pop()
         # Set the category
-        changes = {}
-        categories = appointment['categories']
-        if target_category in categories:
-            logger.info('Appointment already has %s category', target_category)
+        already_done = update_appointment(manager, appointment, action)
+        if already_done:
+            logger.info('Appointment already marked with category')
             if action == KEY_CHECK_IN:
                 message = "Your appointment has already been checked in"
                 manager.increment_counter(METRIC_DUPLICATE_CALL)
@@ -173,19 +217,29 @@ def process_appointments(manager, appointments, addresses, action):
                 manager.increment_counter(METRIC_DUPLICATE_CALL)
             else:
                 message = "Emergency already registered"
-        else:
-            logger.info("Update categories")
-            categories.append(target_category)
-            changes['categories'] = categories
-
-        body = appointment['body']
-        body['content'] = body['content'].replace("</body>", f"{body_message}</body>")
-        changes['body'] = body
-        manager.patch_calendar_event(appointment['id'], changes)
-        logger.info("Appointment updated successfully")
 
     # If we got here, we consider it a success
+    logger.info("Success!")
     success = True
+
+    if action == KEY_CHECK_IN and not already_done:
+        # We managed to check in - try to see if we missed a checkout
+        logger.info("Checked in - look for missed checkout")
+        appointments = get_calendar(manager,
+                                    KEY_CHECK_OUT,
+                                    addresses,
+                                    end_before=appointment["start"]["dateTime"])
+
+        if len(appointments) != 1:
+            # Multiple or no meetings, so do nothing. Maybe there was no missed checkout
+            logger.info("Not got a single meeting, so no missed checkout - count %d", len(appointments))
+            return success, message
+
+        already_done = update_appointment(manager, appointments[0], KEY_CHECK_OUT)
+        if not already_done:
+            logger.info("Found a missed checkout")
+            message += " An earlier appointment has also been checked out."
+
     return success, message
 
 def lambda_handler(event, context):
@@ -238,8 +292,7 @@ def lambda_handler(event, context):
     if action == KEY_CHECK_IN or action == KEY_CHECK_OUT:
         if addresses:
             logger.info("Check-in or out action selected")
-            appointments = get_calendar(manager, action)
-            success, message = process_appointments(manager, appointments, addresses, action)
+            success, message = process_appointments(manager, addresses, action)
             if success:
                 manager.increment_counter(METRIC_SUCCESS)
         else:
@@ -262,9 +315,8 @@ def lambda_handler(event, context):
 
         if addresses:
             logger.info("Emergency mail sent - add emergency tag to meeting or meetings that may match")
-            appointments = get_calendar(manager, action)
             # We do not use the message we get back here except to log it; we do try to update the meeting, but cannot do more than that.
-            success, unused_message = process_appointments(manager, appointments, addresses, action)
+            success, unused_message = process_appointments(manager, addresses, action)
             logger.info("Got message from appointments: %s", unused_message)
             resultMap["appointment check result"] = unused_message
 
