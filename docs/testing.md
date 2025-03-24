@@ -1,20 +1,97 @@
 # Testing
 
-This document describes testing that can be done
-
-## Auth testing
-
-TODO: document the test script
+This document describes testing that can be done.
 
 ## Unit tests
 
-TODO: run automatically, explain how to run manually
+There are some unit tests which run automatically when you run the following.
 
-## Manual tests of the lambdas
+~~~bash
+bash scripts/build_code.sh test
+~~~
 
-TODO: how to manually trigger testing of lambdas
+These report output to screen. If you just want to test a subset of tests, then you can run something like this.
+
+~~~bash
+cd lambdas/ConnectFunction/tests
+pytest -o log_cli=true -o log_cli_level=info
+~~~
+
+## Validating credentials
+
+Once you have set up all of the M365 tenant information, it is very useful to test it all in isolation. The script [test_creds.py](../scripts/test_creds.py) will allow this. It can be run as follows.
+
+- Set up required environment variables for the script.
+
+    ~~~bash
+    export CLIENT_ID="client id"
+    export CLIENT_SECRET="client secret"
+    export TENANT_ID="tenant id"
+    export USERNAME="shared mailbox email"
+    ~~~
+
+- If required install the various modules; exact syntax will depend on your install.
+
+    ~~~bash
+    pip install requests
+    pip install urllib
+    pip install pyjwt
+    ~~~
+
+- Run the script.
+
+    ~~~bash
+    python scripts/test_creds.py
+    ~~~
+
+You should see the script running cleanly, reporting data to screen. If there are any errors, they will be reported, and you can figure out what is wrong; it should be fairly obvious whether it is a failed login, failure to read particular data or whatever.
+
+## Validating the lambda functions
+
+This checks that the lambda functions are doing what they should be doing, without going through full end to end testing.
+
+- Log into the AWS console, and find Lambda functions (enter `lambda` in the search bar if necessary).
+
+- To validate the `check` function works:
+
+    - Select `CheckFunction`
+
+    - Click the `Test` button
+
+    - Ensure that the response looks reasonable, and check the logs (linked to from that page)
+
+    - Repeat after setting up some meetings that should trigger mails (obviously, make sure you do not cause a panic when you do this).
+
+- To validate the `connect` function works:
+
+    - Select `ConnectFunction`
+
+    - Set up three inputs (if they do not already exist). These can all look something like the example below - with "buttonpressed" taking the value 1, 2, 3 for checkin / checkout / emergency. For most test cases, you should ensure that the mobile number matches a real mobile number, [as documented in the user instructions](user.md#configuring-user-accounts).
+
+        ~~~json
+        {
+            "Details": {
+                "Parameters": {
+                "buttonpressed": "1"
+                },
+                "ContactData": {
+                    "CustomerEndpoint": {
+                        "Address": "+447123123456"
+                    }
+                }
+            }
+        }
+        ~~~
+
+    - Click the `Test` button
+
+    - Ensure that the response looks reasonable, and check the logs (linked to from that page)
+
+    - Set up some real meetings and make sure that checkin / checkout / emergency calls work.
 
 ## End to end testing
+
+*End to end testing assumes that you exist with the correct mobile phone number in the M365 client, [as documented in the user instructions](user.md#configuring-user-accounts), and also that you have access to the shared mailbox to check what is happening.*
 
 A good set of end to end tests to try is the following.
 

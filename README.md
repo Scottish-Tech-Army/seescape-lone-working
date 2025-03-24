@@ -24,9 +24,10 @@ There are documents covering the following.
 
 - [Prerequisites to installation](docs/prereqs.md)
 
-- [Initial installation](docs/creation.md)
+- [Deployment creation](docs/creation.md)
 
-- [Subsequent operations](docs/operations.md), such as upgrade or diagnostics collection
+- [Testing](docs/testing.md)
+
+- [Subsequent operations](docs/operations.md), such as upgrade, monitoring, and diagnostics collection
 
 - [User instructions](docs/user.md) (for those using the system, not those responsible for installing or managing it)
-

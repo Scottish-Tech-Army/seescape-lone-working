@@ -38,7 +38,6 @@ do
         . venv/bin/activate
         pip install -r requirements.txt
         # Run tests at this point.
-        # TODO: This works but is really rather verbose; better to log to file
         echo "Run tests"
         pytest -o log_cli=true -o log_cli_level=info
         deactivate
