@@ -8,11 +8,19 @@ You must have done all the following before you start installation.
 
 3. [Created a configuration file](#config-file)
 
-*TODO: mention AWS CLI, python, other command line tools*
+All processes documented here are assumed to run using the linux command line, and depend on:
+
+- python
+
+- The AWS CLI
+
+- Various command line tools including `bash`, `sed`, `awk`, and `jq`.
 
 ## AWS subscription
 
-*To be provided - there are a couple of minor requirements here, including pointing at some AWS docs and setting up CLI.*
+This depends on an AWS subscription. It's normally best to use a dedicated subscription.
+
+The AWS CLI must be configured with a profile whose name will be used later in the configuration file, and with a default region that matches where everything is to be deployed.
 
 ## M365 account
 
@@ -52,7 +60,7 @@ You'll need a mailbox in your organisation that can be accessed by staff managin
 
 - Select the `Shared mailboxes` option, which is in the `Teams & Groups` section on the left hand bar.
 
-- Click `Add a shared mailbox`, and assign it an email address and a name. A good email is something like `loneworker@example.com`.
+- Click `Add a shared mailbox`, and assign it an email address and a name. A good email is something like `loneworker@mycharity.org`.
 
 - After a little while (up to a minute or so), the new shared mailbox appears in the list of shared mailboxes. Click on it.
 
@@ -126,45 +134,60 @@ Unfortunately, this grants the application rights to every mailbox in the enterp
 
     - Description I picked was "Users whose accounts the loneworker app can access"
 
+    - Find and store the object ID GUID for the security group. This will be used as the `PolicyScopeGroupId` below.
+
 - Add the shared mailbox to the group
 
     - Find the group
 
-    - Click on `Members` and add the relevant users (i.e. the lone worker user you are using).
+    - Click on `Members` and add the relevant users (i.e. the shared mailbox which above we called `loneworker@mycharity.org`).
 
-- Find and store the object ID GUID for the security group.
-
-- Install PowerShell to run the commands below; powershell comes with Windows but also exists on linux now.
+- Use PowerShell to run the commands below; powershell comes with Windows but also exists on linux now.
 
     - Install the relevant module
 
-    ~~~powershell
-    Install-Module -Name ExchangeOnlineManagement -Scope CurrentUser
-    ~~~
+        ~~~powershell
+        Install-Module -Name ExchangeOnlineManagement -Scope CurrentUser
+        ~~~
 
     - Connect to Exchange Online as the admin user of the account.
 
-    ~~~powershell
-    Connect-ExchangeOnline -UserPrincipalName <YOUR_EMAIL>
-    ~~~
+        ~~~powershell
+        Connect-ExchangeOnline -UserPrincipalName <YOUR_EMAIL>
+        ~~~
 
     - Create a policy; note that you must substitute your application ID (client ID) into the string.
 
-    ~~~powershell
-    New-ApplicationAccessPolicy -AppId <YOUR_APP_ID> `
-    -PolicyScopeGroupId <THAT_GUID_YOU_SAVED> `
-    -AccessRight RestrictAccess `
-    -Description "Restrict app access to allowed mailboxes only"
-    ~~~
+        ~~~powershell
+        New-ApplicationAccessPolicy -AppId <YOUR_APP_ID> `
+        -PolicyScopeGroupId <THAT_GUID_YOU_SAVED> `
+        -AccessRight RestrictAccess `
+        -Description "Restrict app access to allowed mailboxes only"
+        ~~~
 
-    - Test the policy for a specified mailbox/
+    - Test the policy for a specified mailbox. This should work for the shared mailbox, and fail for any other mailbox.
 
-    ~~~powershell
-    Test-ApplicationAccessPolicy -Identity <TEST_USER_EMAIL> -AppId <YOUR_APP_ID>
-    ~~~
+        ~~~powershell
+        Test-ApplicationAccessPolicy -Identity <TEST_USER_EMAIL> -AppId <YOUR_APP_ID>
+        ~~~
+
+### Testing the client credentials
+
+Once you have set up all of the M365 tenant information, it is very useful to test it all in isolation. Full instructions for how to validate your credentials are in [the test guide here](testing.md#validating-credentials).
 
 ## Config file
 
-Config files - examples are `plw_env.sh`, and `plw.yaml`
+You need to create two configuration files for your deployment. Assuming your organisation is called `mycharity`, th
 
-*TODO: Some documentation in the example file, needs beefing up*
+- There is a YAML document with various parameters in it. An example of this is [`example.yaml` in the config directory](../config/example.yaml).
+
+    - Copy this file to create one called `mycharity.yaml` in the `config` directory.
+
+    - Edit it appropriately following the instructions; for most things the defaults are fine, but you'll need to configure email addresses for emergency mails.
+
+- There is a shell script with further parameters that is sourced before running any of the bash commands. An example of this is [`example_env.sh` in the config directory](../config/example_env.sh).
+
+    - Copy this file to create one called `mycharity_env.sh` in the `config` directory.
+
+    - Edit the fields as appropriate. Many will be able to just use the defaults, but you should at least change your `AWS_PROFILE` value, and the name of your config file (`mycharity.yaml` in this example).
+

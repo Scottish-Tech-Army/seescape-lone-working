@@ -52,8 +52,6 @@ def get_contacts(user, number):
         clauses.append(f"mobilePhone eq '{alt_number}'")
     filter = " or ".join(clauses)
 
-    #filter = f"contains(mobilePhone, '{number}')" # Does not work for users, though does for contacts
-
     params = {
         '$filter': filter
     }
@@ -69,7 +67,6 @@ def get_users(user, number):
     # Nonsense with the count and consistency stuff is a quirk of the graph API
     url = "https://graph.microsoft.com/v1.0/users"
     filter = f"mobilePhone eq '{number}'"
-    #filter = f"contains(mobilePhone, '{number}')" # Does not work for users, though does for contacts
 
     clauses = [f"mobilePhone eq '{number}'"]
 
