@@ -276,8 +276,8 @@ Resources:
                                 [ "${app}/Connect", "Emergencies", { "region": "${AWS::Region}", "label": "Emergency calls" } ],
                                 [ "${app}/Check", "CheckinsMissed", { "region": "${AWS::Region}", "label": "Checkins missed" } ],
                                 [ ".", "CheckoutsMissed", { "region": "${AWS::Region}", "label": "Checkouts missed" } ],
-                                [ "AWS/Lambda", "Errors" ],
-                                [ ".", "Throttles" ]
+                                [ "AWS/Lambda", "Lambda errors" ],
+                                [ ".", "Lambda throttles" ]
                             ],
                             "sparkline": false,
                             "view": "singleValue",
