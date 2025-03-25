@@ -36,8 +36,8 @@ def test_send_warning_mail_checkin():
 
     lines.append("Check-in was missed for an appointment")
     lines.append("  Subject: Test Meeting")
-    lines.append("  Start time: 2023-01-01T10:00:00")
-    lines.append("  End time: 2023-01-01T11:00:00")
+    lines.append("  Start time: 2023-01-01T10:00:00 (GMT)")
+    lines.append("  End time: 2023-01-01T11:00:00 (GMT)")
     lines.append("")
     lines.append("Attendee list:")
     lines.append("")
@@ -66,8 +66,8 @@ def test_send_warning_mail_checkout():
     lines = []
     lines.append("Check-out was missed for an appointment")
     lines.append("  Subject: Test Meeting 2")
-    lines.append("  Start time: 2023-01-02T14:00:00")
-    lines.append("  End time: 2023-01-02T15:00:00")
+    lines.append("  Start time: 2023-01-02T14:00:00 (GMT)")
+    lines.append("  End time: 2023-01-02T15:00:00 (GMT)")
     lines.append("")
     lines.append("Attendee list:")
     lines.append("  billy@example.com")

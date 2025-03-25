@@ -34,8 +34,8 @@ def get_calendar(manager, action, addresses, end_before=None):
 
     This code reads relevant events from the calendar of the configured user and returns them in an array.
 
-    If passed an explicit "end_before" (a datetime) then add to the usual logic a test that the
-    meeting end time is before (or equal to) that time.
+    If passed an explicit "end_before" (a UTC dateTime string from the graph API) then add to the usual
+    logic a test that the meeting end time is before (or equal to) that time.
     """
     logger.info("Get calendar events - action %s, end_before %s", action, end_before)
     app_cfg = manager.get_app_cfg()
@@ -112,6 +112,8 @@ def update_appointment(manager, appointment, action, ignore_already_done=False):
     Returns a flag "already_done" to indicate if the category was already present,
     in which case nothing is done.
     """
+    # Note that we just use local time here - this is a human readable timestamp, not
+    # used for any calculations.
     time_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     if action == KEY_CHECK_IN:
@@ -192,14 +194,24 @@ def process_appointments(manager, addresses, action):
 
     # Check if we are doing a checkin after checkout or a checkout without checkin
     for appointment in appointments:
+        logger.debug("Deal with appointment at %s (%s), subject: %s",
+                     appointment['start']['dateTime'],
+                     appointment['start']['timeZone'],
+                     appointment['subject'])
         # Note for the logic below that we already checked the array is of length 1 if checkin/out
         if action == KEY_CHECK_IN and utils.CHECKED_OUT in appointment['categories']:
             # Cannot check into an appointment to which you have checked out
-            logger.info("Appointment checked out but trying to check in: %s", appointment['subject'])
+            logger.info("Appointment checked out but trying to check in at %s (%s), subject: %s",
+                         appointment['start']['dateTime'],
+                         appointment['start']['timeZone'],
+                         appointment['subject'])
             return success, "You are trying to check into a meeting that you have checked out of."
         if action == KEY_CHECK_OUT and utils.CHECKED_IN not in appointment['categories']:
             # Cannot check out of an appointment to which you have not checked in
-            logger.info("Appointment not checked in but trying to check out: %s", appointment['subject'])
+            logger.info("Appointment not checked in but trying to check out at %s (%s), subject: %s",
+                         appointment['start']['dateTime'],
+                         appointment['start']['timeZone'],
+                         appointment['subject'])
             return success, "You are trying to check out of a meeting that you have not checked into."
 
     already_done = False
@@ -208,7 +220,10 @@ def process_appointments(manager, addresses, action):
         # Set the category
         already_done = update_appointment(manager, appointment, action)
         if already_done:
-            logger.info('Appointment already marked with category')
+            logger.info("Appointment already marked with category at %s (%s), subject: %s",
+                         appointment['start']['dateTime'],
+                         appointment['start']['timeZone'],
+                         appointment['subject'])
             if action == KEY_CHECK_IN:
                 message = "Your appointment has already been checked in"
                 manager.increment_counter(METRIC_DUPLICATE_CALL)
@@ -225,15 +240,27 @@ def process_appointments(manager, addresses, action):
     if action == KEY_CHECK_IN and not already_done:
         # We managed to check in - try to see if we missed a checkout
         logger.info("Checked in - look for missed checkout")
+        start = appointment["start"]
+        if start["timeZone"] != "Etc/GMT":
+            # Somehow we have a non GMT timestamp, despite asking for GMT
+            # Give up.
+            logger.warn("Got a non-GMT timestamp, so giving up: %s", start)
+            return success, message
+
         appointments = get_calendar(manager,
                                     KEY_CHECK_OUT,
                                     addresses,
-                                    end_before=appointment["start"]["dateTime"])
+                                    end_before=start["dateTime"])
 
         if len(appointments) != 1:
             # Multiple or no meetings, so do nothing. Maybe there was no missed checkout
             logger.info("Not got a single meeting, so no missed checkout - count %d", len(appointments))
             return success, message
+
+        logger.info("Possible missed checkout at %s (%s), subject: %s",
+                    appointment['start']['dateTime'],
+                    appointment['start']['timeZone'],
+                    appointment['subject'])
 
         already_done = update_appointment(manager, appointments[0], KEY_CHECK_OUT)
         if not already_done:

@@ -120,7 +120,7 @@ print(json.dumps(decoded, indent=4))
 HEADERS = {
     'Authorization': 'Bearer ' + token,
     'Content-Type': 'application/json',
-    'Prefer': 'outlook.timezone="Europe/London"'
+    'Prefer': 'outlook.timezone="Etc/GMT"'
 }
 
 print("Get calendar")

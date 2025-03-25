@@ -23,8 +23,8 @@ def send_warning_mail(manager, checkin, appointment):
         lines = ["Check-out was missed for an appointment"]
 
     lines.append(f"  Subject: {appointment['subject']}")
-    lines.append(f"  Start time: {appointment['start']['dateTime']}")
-    lines.append(f"  End time: {appointment['end']['dateTime']}")
+    lines.append(f"  Start time: {appointment['start']['dateTime']} (GMT)")
+    lines.append(f"  End time: {appointment['end']['dateTime']} (GMT)")
 
     lines.append(f"")
     lines.append(f"Attendee list:")

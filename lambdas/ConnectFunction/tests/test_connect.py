@@ -42,8 +42,10 @@ def make_appointment(appointment_id="1", subject="Test Appointment", categories=
         "attendees": attendees,
         "bodyPreview": body_preview,
         "body": {"content": "Details"},
-        "start": {"dateTime": "starttime"},
-        "end": {"dateTime": "endtime"}
+        "start": {"dateTime": "starttime",
+                  "timeZone": "Etc/GMT"},
+        "end": {"dateTime": "endtime",
+                "timeZone": "Etc/GMT"},
     }
 
 def test_process_appointments_check_in(dummy_manager, monkeypatch):
