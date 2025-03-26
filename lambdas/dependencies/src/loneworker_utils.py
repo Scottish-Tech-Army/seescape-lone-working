@@ -154,7 +154,7 @@ class LoneWorkerManager:
         """
         Update a calender event.
         """
-        logger.info("Updating calendar event %s", event_id)
+        logger.info("Updating calendar event %s with new categories %s", event_id, changes.get("categories"))
         response = requests.patch(f"{self.calendar_url}/{event_id}", headers=self.headers, json=changes)
 
         if response.status_code != 200:

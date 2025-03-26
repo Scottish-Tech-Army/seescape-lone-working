@@ -95,13 +95,17 @@ This checks that the lambda functions are doing what they should be doing, witho
 
 A good set of end to end tests to try is the following.
 
+### Tyre kicking
+
 - Call in to the number from an unrecognised number, and validate that you get a sensible message.
 
-- Dial into the number and try to check in / check out. You should get a message saying that there is no matching meeting.
+- Dial into the number and try to check in (`1` option). You should get a message saying that there is no matching meeting.
 
-### Mainline
+- Dial into the number and try to check out (`2` option). You should get a message saying that there is no matching meeting.
 
 - Dial in and select the `3` (emergency) option. An email should be sent (even though there are no meetings).
+
+### Mainline
 
 - Create two meetings starting around now, one with your number and one with another.
 
@@ -123,17 +127,25 @@ A good set of end to end tests to try is the following.
 
     - You should see that the older meeting gets a `Checked-In` as well as the newer one getting a `Checked-Out`
 
-- Validate that if you leave the meeting for 10 minutes (or manually kick the "CheckFunction" lambda) then:
+    - Try to check in again, and make sure that you get an "already checked out" message.
 
-    - The meeting acquires a `Missed-Check-In` category
+    - Make sure you can check out of the second meeting.
+
+### Emergencies
+
+- Validate that if you leave the meeting without any categories until the start is at least 15 minutes in the past then after 10 minutes (or manually kick the `CheckFunction` lambda):
+
+    - The meeting acquires a `Missed-Check-In` category (but not a `Missed-Check-Out`)
 
     - An email is sent about it.
 
-- Remove the `Missed-Check-In` category, and add a `Checked-In` category as if you checked in.
+    - Kick the `CheckFunction` lambda again; you should not get another mail.
 
-    - Dial into the number and enter "3". The meeting should acquire an `Emergency` tag, and a mail should be sent.
+- Remove the `Missed-Check-In` category, add a `Checked-In` category as if you checked in, and set the meeting so it ended in the past half hour.
 
-- Alter the time so the meeting ended at least 15 minutes ago. Validate that if you leave the meeting for 10 minutes (or manually kick the "CheckFunction" lambda) then:
+    - Dial into the number and enter `3`. The meeting should acquire an `Emergency` tag, and a mail should be sent.
+
+- Alter the time so the meeting ended at least 15 minutes ago. Validate that if you leave the meeting for 10 minutes (or manually kick the `CheckFunction` lambda) then:
 
     - The meeting acquires a `Missed-Check-Out` category
 

@@ -338,14 +338,17 @@ def lambda_handler(event, context):
         lines.append(f" Caller name if known: {display_name}")
         content = "\r\n".join(lines)
         manager.send_mail(subject, content)
-        message = "Emergency email sent" # This is not actually read out, so is just for diags purposes.
+        message = "Emergency email sent." # This is not actually read out, so is just for diags purposes.
 
         if addresses:
             logger.info("Emergency mail sent - add emergency tag to meeting or meetings that may match")
             # We do not use the message we get back here except to log it; we do try to update the meeting, but cannot do more than that.
-            success, unused_message = process_appointments(manager, addresses, action)
+            _, unused_message = process_appointments(manager, addresses, action)
             logger.info("Got message from appointments: %s", unused_message)
             resultMap["appointment check result"] = unused_message
+
+        # We consider having sent the email as a success, even if we could not find the meeting.
+        success = True
 
     # Report back metrics
     manager.emit_metrics()
