@@ -23,8 +23,8 @@ def send_warning_mail(manager, checkin, appointment):
         lines = ["Check-out was missed for an appointment"]
 
     lines.append(f"  Subject: {appointment['subject']}")
-    lines.append(f"  Start time: {appointment['start']['dateTime']}")
-    lines.append(f"  End time: {appointment['end']['dateTime']}")
+    lines.append(f"  Start time: {appointment['start']['dateTime']} (GMT)")
+    lines.append(f"  End time: {appointment['end']['dateTime']} (GMT)")
 
     lines.append(f"")
     lines.append(f"Attendee list:")
@@ -88,10 +88,12 @@ def process_appointments(manager, appointments, checkin):
     Process the Appointments
     """
     if checkin:
+        logger.info("Checking for missed checkin")
         target_category = utils.CHECKED_IN
         missed_category = utils.MISSED_CHECK_IN
         metric = METRIC_CHECKINS_MISSED
     else:
+        logger.info("Checking for missed checkout")
         target_category = utils.CHECKED_OUT
         missed_category = utils.MISSED_CHECK_OUT
         metric = METRIC_CHECKOUTS_MISSED
@@ -100,7 +102,10 @@ def process_appointments(manager, appointments, checkin):
     manager.increment_counter(METRIC_MEETINGS_CHECKED, len(appointments))
 
     for appointment in appointments:
-        logger.debug("Checking appointment : %s", appointment['subject'])
+        logger.info("Checking appointment at %s (%s), subject: %s",
+                     appointment['start']['dateTime'],
+                     appointment['start']['timeZone'],
+                     appointment['subject'])
         categories = appointment['categories']
         if target_category in categories:
             # Either we are looking for checkin and there was one, or for checkouts and there was one.
@@ -110,9 +115,9 @@ def process_appointments(manager, appointments, checkin):
             # We already flagged this as a problem
             logger.debug("Already marked - %s present already", missed_category)
             continue
-        if not checkin and utils.MISSED_CHECK_IN in categories:
-            # We should not flag a missed checkout if we flagged a missed checkin
-            logger.debug("Ignoring possibly missed checkout where missed checkin reported")
+        if not checkin and not utils.CHECKED_IN in categories:
+            # We should not flag a missed checkout if we never checked in
+            logger.debug("Ignoring missed checkout where no checkin either")
             continue
         if not appointment['attendees']:
             # No attendees for this appointment, so ignore it

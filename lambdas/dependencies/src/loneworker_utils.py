@@ -54,10 +54,11 @@ class LoneWorkerManager:
         self.get_token()
 
         # A couple of things it will be useful to work out in advance
+        # Note that we use GMT for all times, to try to avoid timezone confusion.
         self.headers = {
             'Authorization': 'Bearer ' + self.token,
             'Content-Type': 'application/json',
-            'Prefer': 'outlook.timezone="Europe/London"'
+            'Prefer': 'outlook.timezone="Etc/GMT"'
         }
         self.calendar_url = f"https://graph.microsoft.com/v1.0/users/{self.username}/calendar/events"
         self.mail_url = f"https://graph.microsoft.com/v1.0/users/{self.username}/sendMail"
@@ -153,7 +154,7 @@ class LoneWorkerManager:
         """
         Update a calender event.
         """
-        logger.info("Updating calendar event %s", event_id)
+        logger.info("Updating calendar event %s with new categories %s", event_id, changes.get("categories"))
         response = requests.patch(f"{self.calendar_url}/{event_id}", headers=self.headers, json=changes)
 
         if response.status_code != 200:
@@ -279,8 +280,8 @@ class LoneWorkerManager:
         Emit metrics that have already been stored.
         """
         logging.info("Emit metrics array: %s", self.metrics)
-        # TODO: have a panic about timezones
-        timestamp = datetime.now()
+        # Metrics timestamps must be in UTC
+        timestamp = datetime.now(dt.timezone.utc)
         if not self.metrics_to_emit:
             logging.info("No metrics in array - drop out")
             return
@@ -381,9 +382,12 @@ def build_time_filter(time_filters):
     - "minutes" is the number of minutes the test time should be after the current time (negative for past)
     - "datetime" is the explicit time to test. Only one of minutes and datetime may be specified. This
       must be a Microsoft Graph dateTime string, which will be passed unchanged (not a datetime object).
+      It must be in UTC / GMT, but without the trailing Z.
     - "before_or_after" checks whether the test should be for appointment times that are before or after that time
     - "start_or_end" tests whether it is the appointment start or end time that is being compared.
 
+    Filters will assume a timezone if not specified, but adding a "Z" at the end is supported
+    to indicate UTC.
     """
     logger.info("Number of clauses in time filter: %d", len(time_filters))
     clauses = []
@@ -398,14 +402,15 @@ def build_time_filter(time_filters):
         if time_filter.explicit:
             logger.info("Building a filter on %s time, checking that it is %s an explicit time %s",
                         time_filter.start_or_end, time_filter.before_or_after, time_filter.datetime)
-            formatted_datetime = time_filter.datetime
+            # Truncate anything after the decimal point if present, then put a Z on the end.
+            datetime_string = time_filter.datetime.split('.')[0]
         else:
             logger.info("Building a filter on %s time, checking that it is %s a time %d minutes from now",
                         time_filter.start_or_end, time_filter.before_or_after, time_filter.minutes)
 
             # Calculate the modified datetime
             target_datetime = current_time + timedelta(minutes=time_filter.minutes)
-            formatted_datetime = target_datetime.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+            datetime_string = target_datetime.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
 
         if time_filter.before_or_after == BEFORE:
             # Check that appointment time is less than calculated time.
@@ -414,7 +419,8 @@ def build_time_filter(time_filters):
             # Check that appointment time is greater than calculated time.
             g_or_l = "ge"
 
-        clauses.append(f"{time_filter.start_or_end}/dateTime {g_or_l} '{formatted_datetime}'")
+        # Note that we append a Z to indicate UTC.
+        clauses.append(f"{time_filter.start_or_end}/dateTime {g_or_l} '{datetime_string}Z'")
 
     filter_str = " and ".join(clauses)
     logger.info("Resulting filter: %s", filter_str)
