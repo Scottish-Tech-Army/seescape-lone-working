@@ -257,12 +257,22 @@ def process_appointments(manager, addresses, action):
             logger.info("Not got a single meeting, so no missed checkout - count %d", len(appointments))
             return success, message
 
+        appointment = appointments.pop()
         logger.info("Possible missed checkout at %s (%s), subject: %s",
                     appointment['start']['dateTime'],
                     appointment['start']['timeZone'],
                     appointment['subject'])
 
-        already_done = update_appointment(manager, appointments[0], KEY_CHECK_OUT)
+        if utils.CHECKED_IN not in appointment['categories']:
+            # Cannot check out of an appointment to which you have not checked in
+            # Probably a missed checkin and checkout.
+            logger.info("Appointment not checked in so no checkin at %s (%s), subject: %s",
+                         appointment['start']['dateTime'],
+                         appointment['start']['timeZone'],
+                         appointment['subject'])
+            return success, message
+
+        already_done = update_appointment(manager, appointment, KEY_CHECK_OUT)
         if not already_done:
             logger.info("Found a missed checkout")
             message += " An earlier appointment has also been checked out."
