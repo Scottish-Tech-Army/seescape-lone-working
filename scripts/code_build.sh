@@ -1,8 +1,6 @@
 #!/bin/bash
 # Build the lambdas.
 set -euo pipefail
-echo "Environment: ${ENVIRONMENT}"
-echo "App: ${APP}"
 
 # This script must run from the parent directory of the scripts directory
 cd "$(dirname "$0")/.."
@@ -11,9 +9,10 @@ source scripts/utils.sh
 # Determine whether tests should be run based on the command line argument.
 if [ "$#" -gt 0 ]; then
     if [ "$1" = "test" ]; then
-        RUNTESTS="true"
+        echo "Run tests"
+        bash scripts/code_test.sh
     elif [ "$1" = "notest" ]; then
-        RUNTESTS="false"
+        echo "Do not run tests"
     else
         echo "Usage: $0 {test|notest}" >&2
         exit 1
@@ -23,27 +22,10 @@ else
     exit 1
 fi
 
-# Set up where all the built zip files will go.
-mkdir -p build
-rm -f build/*.zip
-
 # Build the packages
 for TARGET in dependencies ConnectFunction CheckFunction
 do
     pushd lambdas/${TARGET}
-
-    if [[ "${RUNTESTS:-}" == "true" ]]; then
-        echo "Testing target ${TARGET}"
-        python -m venv venv
-        . venv/bin/activate
-        pip install -r requirements.txt
-        # Run tests at this point.
-        echo "Run tests"
-        pytest -o log_cli=true -o log_cli_level=info
-        deactivate
-    else
-        echo "Tests not run for target ${TARGET}"
-    fi
 
     echo "Packaging target ${TARGET}"
     rm -rf ${TARGET}/build
