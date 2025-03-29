@@ -6,7 +6,7 @@
 
 In order to take a new version of the code, you should follow the process below.
 
-- Check out the code from the [github repo](https://github.com/Scottish-Tech-Army/seescape-lone-working), and `cd` intot he root directory.
+- Check out the code from the [github repo](https://github.com/Scottish-Tech-Army/seescape-lone-working), and `cd` into the root directory.
 
 - Load your config file.
 

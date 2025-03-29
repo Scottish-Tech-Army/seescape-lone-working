@@ -7,7 +7,7 @@ This document describes testing that can be done.
 There are some unit tests which run automatically when you run the following.
 
 ~~~bash
-bash scripts/build_code.sh test
+bash scripts/code_test.sh
 ~~~
 
 These report output to screen. If you just want to test a subset of tests, then you can run something like this.
