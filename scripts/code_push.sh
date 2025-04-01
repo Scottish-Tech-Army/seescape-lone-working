@@ -18,7 +18,7 @@ bash scripts/cfg_push.sh
 # commands on the same function need to be separated by a second or two for reasons,
 # and so we jump back and forth between doing things on each function and doing things
 # on the dependency layer so that things do not fail.
-for TARGET in dependencies ConnectFunction CheckFunction
+for TARGET in dependencies ConnectFunction CheckFunction MetricsFunction
 do
     echo "Uploading ${TARGET} to S3"
     aws s3 cp build/${TARGET}.zip s3://${BUCKET_NAME}/lambdas/${TARGET}
@@ -34,7 +34,7 @@ fi
 LAYER_NUMBERS=$(aws lambda list-layer-versions --layer-name ${LAYER_NAME} | jq -r '.LayerVersions | map(.Version) | sort | join(" ")')
 echo "Current list of layer numbers: ${LAYER_NUMBERS}"
 
-for TARGET in ConnectFunction CheckFunction
+for TARGET in ConnectFunction CheckFunction MetricsFunction
 do
     echo "Forcing ${TARGET} code to the new version  "
     aws lambda update-function-code \

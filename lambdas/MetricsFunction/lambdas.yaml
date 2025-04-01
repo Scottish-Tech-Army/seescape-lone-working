@@ -61,16 +61,6 @@ Resources:
                 cloudwatch:namespace:
                   Fn::Sub: "${app}/*"
       - PolicyName:
-          Fn::Sub: ${app}-metrics-read-policy
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Action:
-            - cloudwatch:GetMetricStatistics
-            - cloudwatch:ListMetrics
-            Effect: Allow
-            Resource: "*"
-      - PolicyName:
           Fn::Sub: ${app}-S3-access-policy
         PolicyDocument:
           Version: "2012-10-17"
@@ -78,31 +68,8 @@ Resources:
             - Effect: "Allow"
               Action:
                 - "s3:GetObject"
-                - "s3:PutObject"
               Resource:
                 - Fn::Sub: arn:aws:s3:::${bucketName}/*
-      - PolicyName:
-          Fn::Sub: ${app}-S3-list-policy
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-            - Effect: "Allow"
-              Action:
-                - "s3:ListBucket"
-                - "s3:GetBucketLocation"
-              Resource:
-                - Fn::Sub: arn:aws:s3:::${bucketName}
-      - PolicyName:
-          Fn::Sub: ${app}-athena-policy
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-            Effect: Allow
-            Action:
-              - "athena:StartQueryExecution"
-              - "athena:GetQueryExecution"
-              - "athena:GetQueryResults"
-            Resource: "*"
       ManagedPolicyArns:
       - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Path: /
@@ -200,7 +167,7 @@ Resources:
       CodeUri:
         Bucket: { Ref: bucketName }
         Key: lambdas/MetricsFunction
-      Timeout: 300
+      Timeout: 30
       MemorySize: 256
       Environment:
         Variables:
@@ -221,12 +188,14 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: cron(0 1 * * ? *)
-            Input: '{"day_range": [1]}'
+            Input:
+              day_range: [1]
         InvocationLevel2:
           Type: Schedule
           Properties:
             Schedule: cron(0 2 * * ? *)
-            Input: '{"day_range": []}'
+            Input:
+              day_range: []
     Metadata:
       SamResourceId: CheckFunction
   AthenaReadOnlyUser:
@@ -242,7 +211,7 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          # S3 permissions: allowing bucket listing and reading objects.
+          # S3 permissions: allowing bucket listing and reading objects under the specified folder.
           - Sid: "S3ListBucket"
             Effect: Allow
             Action:
@@ -250,37 +219,31 @@ Resources:
               - "s3:ListBucket"
             Resource:
               - Fn::Sub: "arn:aws:s3:::${bucketName}"
-          - Sid: "S3Read"
+          - Sid: "S3GetObjects"
             Effect: Allow
             Action:
               - "s3:GetObject"
             Resource:
-              # Strictly, only read access to metrics should be required, but harmless
-              - Fn::Sub: "arn:aws:s3:::${bucketName}/*"
-          # S3 permissions: writing results.
-          - Sid: "S3Write"
+              - Fn::Sub: "arn:aws:s3:::${bucketName}/metrics/*"
+          - Sid: "S3PutObjects"
             Effect: Allow
             Action:
-              - "s3:*"
+              - "s3:GetObject"
+              - "s3:PutObject"
             Resource:
               - Fn::Sub: "arn:aws:s3:::${bucketName}/athena-results/*"
           # Athena permissions: allowing the user to run and monitor queries.
-          - Sid: "Athena"
+          - Sid: "AthenaReadAccess"
             Effect: Allow
             Action:
-              - "athena:*"
+              - "athena:StartQueryExecution"
+              - "athena:GetQueryExecution"
+              - "athena:GetQueryResults"
             Resource: "*"
-          # Glue permissions. Not sure why it needs this, but it seems to.
-          - Sid: "GluePermissionsForCatalogAccess"
-            Effect: "Allow"
-            Action:
-              - "glue:GetDatabase"
-              - "glue:GetDatabases"
-              - "glue:GetTable"
-              - "glue:GetTables"
-              - "glue:GetPartition"
-              - "glue:GetPartitions"
-              - "glue:GetCatalog"
-              - "glue:GetCatalogs"
-              - "glue:SearchTables"
-            Resource: "*"
+          # Glue permissions: allowing the user to read the Data Catalog metadata (database/table detail).
+          #- Sid: "GlueReadAccess"
+          #  Effect: Allow
+          #  Action:
+          #    - "glue:GetDatabase"
+          #    - "glue:GetTable"
+          #  Resource: "*"
