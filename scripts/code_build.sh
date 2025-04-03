@@ -23,7 +23,7 @@ else
 fi
 
 # Build the packages
-for TARGET in dependencies ConnectFunction CheckFunction
+for TARGET in dependencies ConnectFunction CheckFunction MetricsFunction
 do
     pushd lambdas/${TARGET}
 

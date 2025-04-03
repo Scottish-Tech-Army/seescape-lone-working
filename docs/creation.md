@@ -87,3 +87,23 @@ Once you have done that you must manually assign a phone number in the AWS Conne
     - Assign it to the loneworker flow.
 
 If you call the assigned phone number, you should find that the call is answered.
+
+### Enable metrics export
+
+Metrics are exposed in an Athena database which can be connected to an external BI solution. Setting this up requires the following script to be run.
+
+~~~bash
+bash scripts/athena.sh
+~~~
+
+In order to expose this database, you need a SQL alchemy string. You can generate one as follows.
+
+~~~bash
+aws iam create-access-key --user-name AthenaReadOnlyUser
+
+export ACCESS_KEY_ID=<access key id from output to above>
+export SECRET_ACCESS_KEY=<secret access key from output to above>
+export ENCODED_KEY=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$SECRET_ACCESS_KEY")
+export REGION=eu-west-2 # Change if necessary
+echo "awsathena+rest://${ACCESS_KEY_ID}:${ENCODED_KEY}@athena.${REGION}.amazonaws.com/${APP}?s3_staging_dir=s3://${BUCKET_NAME}/metrics/&work_group=${APP}-athena"
+~~~
