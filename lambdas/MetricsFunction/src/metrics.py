@@ -1,10 +1,11 @@
 import boto3
 import csv
 import datetime as dt
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta
 import io
 import logging
 import os
+import time
 
 logger = logging.getLogger(__name__)
 # Do not make the log level DEBUG or it explodes
@@ -27,7 +28,7 @@ def get_metrics(days_ago, period=3600, bucket=None, app=None):
     # Get date in UTC
     date = (datetime.now(dt.timezone.utc) - timedelta(days=days_ago)).date()
     # Set the end time to midnight of the day (00:00:00)
-    end_time = datetime.combine(date, time.min)
+    end_time = datetime.combine(date, dt.time.min)
     start_time = end_time - timedelta(days=1)  # Get data for one day
     logger.info("Collecting data from %s to %s", start_time, end_time)
 
@@ -133,6 +134,7 @@ def update_tables(bucket, app):
     if bucket is None:
         logger.info("Bucket is None - drop out")
         return
+
     # Set up your Athena client
     athena_client = boto3.client('athena')
 
@@ -151,6 +153,27 @@ def update_tables(bucket, app):
         WorkGroup=workgroup_name
     )
 
+    query_execution_id = response.get("QueryExecutionId")
+
+    # Poll the query execution status until it's complete. We ignore exceptions and
+    # let them bubble up to the top.
+    logger.info("Wait for query result")
+    state = None
+    while True:
+        query_status = athena_client.get_query_execution(QueryExecutionId=query_execution_id)
+        state = query_status['QueryExecution']['Status']['State']
+        if state in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
+            break
+        logger.info(f"Query state: {state}. Waiting for completion...")
+        time.sleep(1)  # Wait a bit before checking again
+
+    if state == 'SUCCEEDED':
+        logger.info("Query succeeded!")
+    else:
+        error_reason = query_status['QueryExecution']['Status'].get("StateChangeReason", "Unknown error")
+        logger.error(f"Query failed with state '{state}'. Reason: {error_reason}")
+        raise RuntimeError(f"Query failed with state '{state}'. Reason: {error_reason}")
+
 def lambda_handler(event, context):
     # This reads a range of events from
     logger.info("Called with event: %s", event)
@@ -166,6 +189,17 @@ def lambda_handler(event, context):
     # Update the tables too
     update_tables(bucket=bucket, app=app)
     logger.info("All done")
+
+    result = {
+        "Result": "Success",
+        "Inputs": {
+            "Bucket": bucket,
+            "App": app,
+            "Day_range": day_range
+        }
+    }
+
+    return result
 
 if __name__== "__main__":
     # Called from the command line.

@@ -335,9 +335,9 @@ def lambda_handler(event, context):
         else:
             logger.info("Giving up - no phone number or no matching addresses")
             if phone_found:
-                message = "Unable to find meeting matching your phone number"
+                message = "Unable to find meeting matching your phone number."
             else:
-                message = "Unable to find your phone number"
+                message = "Unable to find your phone number."
     else:
         logger.info("Emergency action selected")
         subject = "Emergency Assistance Required!"
