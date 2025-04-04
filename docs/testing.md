@@ -89,6 +89,22 @@ This checks that the lambda functions are doing what they should be doing, witho
 
     - Set up some real meetings and make sure that checkin / checkout / emergency calls work.
 
+- To validate the `metrics` function works:
+
+    - Select `MetricsFunction`
+
+    - Set up an input file. An example (that collects for one and two days in the past) is given below.
+
+        ~~~json
+        {
+            "day_range": [1, 2]
+        }
+        ~~~
+
+    - Click the `Test` button
+
+    - Ensure that the response looks reasonable.
+
 ## End to end testing
 
 *End to end testing assumes that you exist with the correct mobile phone number in the M365 client, [as documented in the user instructions](user.md#configuring-user-accounts), and also that you have access to the shared mailbox to check what is happening.*

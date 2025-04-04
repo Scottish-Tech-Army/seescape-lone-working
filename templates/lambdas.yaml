@@ -61,6 +61,36 @@ Resources:
                 cloudwatch:namespace:
                   Fn::Sub: "${app}/*"
       - PolicyName:
+          Fn::Sub: ${app}-S3-access-policy
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action:
+                - "s3:GetObject"
+              Resource:
+                - Fn::Sub: arn:aws:s3:::${bucketName}/*
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /
+    Metadata:
+      SamResourceId: LambdaRole
+  MetricsLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName:
+        Fn::Sub: ${app}-lambda-role-metrics
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+      Policies:
+      - PolicyName:
           Fn::Sub: ${app}-metrics-read-policy
         PolicyDocument:
           Version: '2012-10-17'
@@ -71,18 +101,7 @@ Resources:
             Effect: Allow
             Resource: "*"
       - PolicyName:
-          Fn::Sub: ${app}-S3-access-policy
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-            - Effect: "Allow"
-              Action:
-                - "s3:GetObject"
-                - "s3:PutObject"
-              Resource:
-                - Fn::Sub: arn:aws:s3:::${bucketName}/*
-      - PolicyName:
-          Fn::Sub: ${app}-S3-list-policy
+          Fn::Sub: ${app}-S3-metrics-list
         PolicyDocument:
           Version: "2012-10-17"
           Statement:
@@ -92,6 +111,27 @@ Resources:
                 - "s3:GetBucketLocation"
               Resource:
                 - Fn::Sub: arn:aws:s3:::${bucketName}
+      - PolicyName:
+          Fn::Sub: ${app}-S3-metrics-read
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action:
+                - "s3:GetObject"
+              Resource:
+                - Fn::Sub: arn:aws:s3:::${bucketName}/metrics/*
+      - PolicyName:
+          Fn::Sub: ${app}-S3-write
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - "s3:*"
+              Resource:
+                - Fn::Sub: "arn:aws:s3:::${bucketName}/athena-results/*"
+                - Fn::Sub: "arn:aws:s3:::${bucketName}/metrics/*"
       - PolicyName:
           Fn::Sub: ${app}-athena-policy
         PolicyDocument:
@@ -103,11 +143,21 @@ Resources:
               - "athena:GetQueryExecution"
               - "athena:GetQueryResults"
             Resource: "*"
+      - PolicyName:
+          Fn::Sub: ${app}-glue-policy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Action:
+            - "glue:*"
+            Effect: Allow
+            Resource: "*"
+            #    - Fn::Sub: arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog
       ManagedPolicyArns:
       - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Path: /
     Metadata:
-      SamResourceId: LambdaRole
+      SamResourceId: MetricsLambdaRole
   DependancyLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
@@ -211,7 +261,7 @@ Resources:
             Ref: bucketName
       Role:
         Fn::GetAtt:
-        - LambdaRole
+        - MetricsLambdaRole
         - Arn
       Events:
         # We call this twice - once to collect metrics from the day before, and once
