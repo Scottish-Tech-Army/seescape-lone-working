@@ -28,8 +28,8 @@ def get_metrics(days_ago, period=3600, bucket=None, app=None):
     # Get date in UTC
     date = (datetime.now(dt.timezone.utc) - timedelta(days=days_ago)).date()
     # Set the end time to midnight of the day (00:00:00)
-    end_time = datetime.combine(date, dt.time.min)
-    start_time = end_time - timedelta(days=1)  # Get data for one day
+    start_time = datetime.combine(date, dt.time.min)
+    end_time = start_time + timedelta(days=1)  # Get data for one day
     logger.info("Collecting data from %s to %s", start_time, end_time)
 
     # Work out the path to write things to.
