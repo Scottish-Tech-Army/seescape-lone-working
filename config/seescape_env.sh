@@ -13,7 +13,7 @@ export ENVIRONMENT=seescape             # Environment name, used in some tags
 
 # Number of reserved instances for performance. A good value is normally 1 or 2,
 # but you can set it to 0 if AWS quotas are preventing it working.
-export CONCURRENCY=1
+export CONCURRENCY=0
 
 # These normally do not have to be distinct; leave unchanged unless you have a good reason.
 export APP=loneworker # Used for tags and naming

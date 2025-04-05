@@ -174,16 +174,13 @@ Resources:
                             "metrics": [
                                 [ "AWS/Lambda", "Invocations", "FunctionName", "CheckFunction", { "region": "${AWS::Region}", "color": "#2ca02c" } ],
                                 [ ".", "Errors", ".", ".", { "region": "${AWS::Region}", "color": "#d62728" } ],
-                                [ "...", "ConnectFunction", { "region": "${AWS::Region}", "visible": false } ],
-                                [ ".", "Invocations", ".", ".", { "region": "${AWS::Region}", "visible": false } ],
-                                [ "${app}/Check", "CheckinsMissed", { "region": "${AWS::Region}", "visible": false } ],
-                                [ ".", "CheckoutsMissed", { "region": "${AWS::Region}", "visible": false } ],
-                                [ ".", "MeetingsChecked", { "region": "${AWS::Region}", "visible": false } ]
+                                [ "AWS/Lambda", "Invocations", "FunctionName", "MetricsFunction", { "region": "${AWS::Region}", "color": "#1f77b4" } ],
+                                [ ".", "Errors", ".", ".", { "region": "${AWS::Region}", "color": "#ffbb78" } ]
                             ],
                             "view": "timeSeries",
                             "stacked": false,
                             "region": "${AWS::Region}",
-                            "title": "Check function invocations and errors",
+                            "title": "Timed function invocations and errors",
                             "period": ${statsInterval},
                             "liveData": true,
                             "stat": "Sum"
