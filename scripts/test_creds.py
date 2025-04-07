@@ -117,6 +117,13 @@ decoded = jwt.decode(token, options={"verify_signature": False})
 print("Decoded JWT:")
 print(json.dumps(decoded, indent=4))
 
+roles = [role.lower() for role in decoded["roles"]]  # Convert roles to lowercase for case-insensitive comparison
+missing_role = False
+for permission in ["Calendars.ReadWrite", "User.Read.All", "Mail.Send", "Contacts.Read"]:
+    if not permission.lower() in roles:
+        print(f"Permission missing from roles: {permission}")
+        missing_role = True
+
 HEADERS = {
     'Authorization': 'Bearer ' + token,
     'Content-Type': 'application/json',
@@ -140,3 +147,7 @@ print("Get users")
 number = "+4471231231234"
 users = get_users(user, number)
 print(json.dumps(users, indent=4))
+
+# We plough on even if there is a missing role, but want to make the user notice.
+if missing_role:
+    raise RuntimeError("At least one role missing - see above")
