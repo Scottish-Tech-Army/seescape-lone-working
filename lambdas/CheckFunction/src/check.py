@@ -167,4 +167,6 @@ def lambda_handler(event, context):
     resultMap["metrics"]["Missed checkins reported"] = metrics[METRIC_CHECKINS_MISSED]
     resultMap["metrics"]["Missed checkouts reported"] = metrics[METRIC_CHECKOUTS_MISSED]
 
+    logger.info("Returning structure: %s", resultMap)
+
     return resultMap

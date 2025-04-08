@@ -282,8 +282,12 @@ def process_appointments(manager, addresses, action):
 def lambda_handler(event, context):
     """ Lambda Handler"""
     logger.info("Received call to handle")
-    manager = utils.LoneWorkerManager("Connect", ALL_METRICS)
+
+    # Assume failure
+    success = False
     resultMap = {}
+
+    manager = utils.LoneWorkerManager("Connect", ALL_METRICS)
 
     action = event['Details']['Parameters']['buttonpressed']
     if action == KEY_CHECK_IN:
@@ -323,9 +327,6 @@ def lambda_handler(event, context):
     resultMap["calling number"] = phone_number
     message = ""
 
-    # Assume failure
-    success = False
-
     if action == KEY_CHECK_IN or action == KEY_CHECK_OUT:
         if addresses:
             logger.info("Check-in or out action selected")
@@ -335,7 +336,7 @@ def lambda_handler(event, context):
         else:
             logger.info("Giving up - no phone number or no matching addresses")
             if phone_found:
-                message = "Unable to find meeting matching your phone number."
+                message = "Unrecognised phone number."
             else:
                 message = "Unable to find your phone number."
     else:
@@ -367,5 +368,7 @@ def lambda_handler(event, context):
         resultMap["message"] = message
     else:
         resultMap["message"] = f"An error occurred. {message} Please phone the office."
+
+    logger.info("Returning structure: %s", resultMap)
 
     return resultMap
