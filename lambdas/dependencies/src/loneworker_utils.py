@@ -6,6 +6,7 @@ import boto3
 from collections import namedtuple
 from datetime import datetime, timedelta
 import datetime as dt
+import json
 import logging
 import os
 import requests
@@ -88,11 +89,8 @@ class LoneWorkerManager:
         logger.info("Tenant: %s, Client ID: %s, username: %s", self.tenant, self.client_id, self.username)
 
         # More config in the config blob.
-        logger.info("Validate configuration")
+        logger.info("Validate and save configuration")
         self.cfg = cfg_parser.LambdaConfig(data=values["config"])
-
-        # Log the configuration
-        logger.info("Configuration: %s", self.cfg.pretty_format())
 
     def get_app_cfg(self):
         return self.cfg.get_app_cfg(self.app_type)
@@ -161,11 +159,30 @@ class LoneWorkerManager:
             logger.error('Calendar patch operation failed: %d, message: %s', response.status_code, response.text)
             raise RuntimeError(f"Calendar patch operation failed: {response.status_code}, message: {response.text}")
 
-    def send_mail(self, subject, content):
+    def send_email(self, type, subject, content):
         """
-        Send an email
+        Sends an email using the Microsoft Graph API.
+
+        This method constructs an email payload and sends it to the specified recipients
+        using the Microsoft Graph API. It logs the process and raises an exception if the
+        email fails to send.
+
+        Args:
+            type (str): The type of email to send, used to retrieve the appropriate recipients.
+            subject (str): The subject line of the email.
+            content (str): The body content of the email.
+
+        Raises:
+            RuntimeError: If the email fails to send, an exception is raised with the
+                          HTTP status code and error message.
+
+        Logs:
+            - Logs the recipients and subject of the email being sent.
+            - Logs the constructed payload for debugging purposes.
+            - Logs an error if the email fails to send.
         """
-        recipients = self.cfg.get_email_recipients()
+        recipients = self.cfg.get_email_recipients(type)
+
         logger.info("Sending email to %s, subject: %s", recipients, subject)
 
         recip_array = []

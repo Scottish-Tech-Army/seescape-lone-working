@@ -2,7 +2,10 @@
 # Name of AWS profile to use.
 export AWS_PROFILE=my-profile
 
-# This must be a valid yaml file in the same directory.
+# This must be a valid yaml config file, as documented in the example. It can either be:
+# - In the config directory, with no path (as here)
+# - In another directory with a relative path to the base of the repo (such as "../myconfig.yaml")
+#   This latter is to avoid email address config going into public repos.
 export CONFIG_FILE=example.yaml
 
 # Various other parameters that must be passed around into both scripts and cloudformation.

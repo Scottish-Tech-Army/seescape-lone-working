@@ -348,7 +348,7 @@ def lambda_handler(event, context):
         lines.append(f" Calling number      : {phone_number}")
         lines.append(f" Caller name if known: {display_name}")
         content = "\r\n".join(lines)
-        manager.send_mail(subject, content)
+        manager.send_email("emergency", subject, content)
         message = "Emergency email sent." # This is not actually read out, so is just for diags purposes.
 
         if addresses:

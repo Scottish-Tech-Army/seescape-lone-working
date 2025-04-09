@@ -1,10 +1,20 @@
-import sys
-import yaml
 import json
 import jsonschema
+import logging
+import sys
+import yaml
+
+logger = logging.getLogger(__name__)
+
+# Do not make the log level DEBUG or it explodes
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s.%(msecs)03d - %(levelname)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
+
 
 # Key values defined as constants
-EMAIL_RECIPS="email_recipients"
+EMAIL_RECIPS_OVERDUE="email_recipients_overdue"
+EMAIL_RECIPS_EMERGENCY="email_recipients_emergency"
 
 class LambdaConfig:
     def __init__(self, file_path=None, data=None):
@@ -17,29 +27,28 @@ class LambdaConfig:
         self.config = {}
 
         if file_path:
+            logger.info("Opening file %s", file_path)
             with open(file_path, 'r') as f:
                 self.config = yaml.safe_load(f) or {}
         else:
+            logger.info("Using data in memory")
             self.config = yaml.safe_load(data) or {}
 
         self.validate()
 
-        # If we are loading from file, we are in a test run, and should write debug info
-        if file_path:
-            print("Parsed file to config as follows")
-            print(self.pretty_format())
-
-    def pretty_format(self):
-        # Return a pretty printed version of the config object
-        return json.dumps(self.config, indent=4)
+        logging.info("Loaded config parameters as follows: %s", json.dumps(self.config, indent=4))
 
     def validate(self):
         # Define the JSON schema for configuration validation
         schema = {
             "type": "object",
-            "required": [EMAIL_RECIPS],
             "properties": {
-                EMAIL_RECIPS: {
+                EMAIL_RECIPS_OVERDUE: {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 1
+                },
+                EMAIL_RECIPS_EMERGENCY: {
                     "type": "array",
                     "items": {"type": "string"},
                     "minItems": 1
@@ -85,6 +94,16 @@ class LambdaConfig:
         except jsonschema.exceptions.ValidationError as e:
             raise ValueError(f"Configuration validation error: {e}")
 
+        # Check email recipients. We allow you to just specify one array, in which case we make the two the same.
+        if EMAIL_RECIPS_EMERGENCY not in self.config and EMAIL_RECIPS_OVERDUE not in self.config:
+            raise ValueError(f"At least one of {EMAIL_RECIPS_OVERDUE} and {EMAIL_RECIPS_EMERGENCY} must be set")
+        if EMAIL_RECIPS_EMERGENCY not in self.config:
+            logger.info("Defaulting emergency recipients to overdue list")
+            self.config[EMAIL_RECIPS_EMERGENCY] = self.config[EMAIL_RECIPS_OVERDUE]
+        if EMAIL_RECIPS_OVERDUE not in self.config:
+            logger.info("Defaulting overdue recipients to emergency list")
+            self.config[EMAIL_RECIPS_OVERDUE] = self.config[EMAIL_RECIPS_EMERGENCY]
+
         # Default the check structure to be present but empty
         try:
             check = self.config["check"]
@@ -108,17 +127,21 @@ class LambdaConfig:
         if not "ignore_after_min" in check:
             check["ignore_after_min"] = 75
         if not "checkin_grace_min" in connect:
-             connect["checkin_grace_min"] = 30
+             connect["checkin_grace_min"] = 15
         if not "checkout_grace_min" in connect:
-             connect["checkout_grace_min"] = 30
+             connect["checkout_grace_min"] = 15
         if not "ignore_after_min" in connect:
             connect["ignore_after_min"] = 75
 
-    def get_email_recipients(self):
+    def get_email_recipients(self, type):
         """
         Returns the 'email_recipients' field from the configuration dictionary.
         """
-        return self.config.get(EMAIL_RECIPS)
+        if type == "overdue":
+            return self.config.get(EMAIL_RECIPS_OVERDUE)
+        if type == "emergency":
+            return self.config.get(EMAIL_RECIPS_EMERGENCY)
+        raise RuntimeError(f"Invalid type for get_email_recipients: %s", type)
 
     def get_app_cfg(self, app_name):
         """

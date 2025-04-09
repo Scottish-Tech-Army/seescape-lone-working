@@ -2,8 +2,8 @@
 # Convenience variables used only by the aws CLI. Not mandatory.
 export AWS_PROFILE=seescape
 
-# This must be a valid yaml file in the same directory.
-export CONFIG_FILE=seescape.yaml
+# Config file - outside the repo as it contains email addresses.
+export CONFIG_FILE=../seescape.yaml
 
 # Various other parameters that must be passed around into both scripts and cloudformation.
 # None of these may include spaces or special characters.

@@ -24,7 +24,7 @@ def dummy_manager():
     manager = MagicMock()
     manager.get_calendar_events = MagicMock(return_value=[])
     manager.patch_calendar_event = MagicMock()
-    manager.send_mail = MagicMock()
+    manager.send_email = MagicMock()
     return manager
 
 def make_appointment(appointment_id="1", subject="Test Appointment", categories=None, body_preview="", attendee_mails=[]):

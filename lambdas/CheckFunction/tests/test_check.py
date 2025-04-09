@@ -17,8 +17,8 @@ class DummyManager:
     def __init__(self):
         self.sent_mail = None
 
-    def send_mail(self, subject, content):
-        self.sent_mail = [subject, content]
+    def send_email(self, type, subject, content):
+        self.sent_mail = [type, subject, content]
 
 def test_send_warning_mail_checkin():
     manager = DummyManager()
@@ -44,9 +44,9 @@ def test_send_warning_mail_checkin():
     lines.append("Meeting description:")
     lines.append("Meeting details info.")
     expected_content = "\r\n".join(lines)
-    assert manager.sent_mail[0] == expected_subject
-    assert manager.sent_mail[1] == expected_content
-
+    assert manager.sent_mail[0] == "overdue"
+    assert manager.sent_mail[1] == expected_subject
+    assert manager.sent_mail[2] == expected_content
 
 def test_send_warning_mail_checkout():
     manager = DummyManager()
@@ -76,5 +76,6 @@ def test_send_warning_mail_checkout():
     lines.append("Meeting description:")
     lines.append("Checkout details info.")
     expected_content = "\r\n".join(lines)
-    assert manager.sent_mail[0] == expected_subject
-    assert manager.sent_mail[1] == expected_content
+    assert manager.sent_mail[0] == "overdue"
+    assert manager.sent_mail[1] == expected_subject
+    assert manager.sent_mail[2] == expected_content

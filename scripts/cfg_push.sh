@@ -8,7 +8,11 @@ echo "App: ${APP}"
 cd "$(dirname "$0")/.."
 source scripts/utils.sh
 
-CFG_FULL_PATH="config/${CONFIG_FILE}"
+if [[ "${CONFIG_FILE}" == */* ]]; then
+    CFG_FULL_PATH="${CONFIG_FILE}"
+else
+    CFG_FULL_PATH="config/${CONFIG_FILE}"
+fi
 
 echo "Loading configuration file ${CFG_FULL_PATH}"
 echo "  Validating file"

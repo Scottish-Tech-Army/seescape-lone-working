@@ -1,8 +1,0 @@
-# This is the configuration that will be loaded and used by the application itself
-# Email recipient list
-email_recipients:
-  - "LoneWorkerNotifications@seescape.org.uk"
-connect: # Parameters used during calls
-  checkin_grace_min: 15  # You can check in to a meeting within checkin_grace_min minutes of its start time
-  checkout_grace_min: 15 # You can check out of a meeting within checkout_grace_min minutes of its end time
-  ignore_after_min: 75   # If a meeting is more than ignore_after_min minutes old, it is ignored

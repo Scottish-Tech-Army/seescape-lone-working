@@ -39,7 +39,7 @@ def send_warning_mail(manager, checkin, appointment):
     lines.append(f"{appointment['bodyPreview']}")
     content = "\r\n".join(lines)
 
-    manager.send_mail(subject, content)
+    manager.send_email("overdue", subject, content)
 
 def get_calendar_items(manager):
     """
