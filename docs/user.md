@@ -83,8 +83,8 @@ Call the phone number for the application when you arrive at or leave from a mee
 
 - When prompted enter
 
-    - "1" to check into a meeting scheduled to start within 30 minutes of the current time
+    - "1" to check into a meeting scheduled to start within 15 minutes of the current time
 
-    - "2" to check out of a meeting scheduled to end within 30 minutes of the current time
+    - "2" to check out of a meeting scheduled to end within 15 minutes of the current time
 
     - "3" in case of emergency, where you wish the office staff to call the police or otherwise react. You will hear a message saying that all operators are busy; this is in case the call is overheard.

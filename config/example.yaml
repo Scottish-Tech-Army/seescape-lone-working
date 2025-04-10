@@ -1,9 +1,12 @@
 # Example configuration file. Do not edit this - copy it and create your own.
 # Defaulted values are commented out, with their default shown.
 #
-# Email recipients for warnings about emergency calls and missed checkins / outs.
-# Must be a list of email addresses.
-email_recipients:
+# Email recipients for warnings about emergency calls and overdue checkins / outs.
+# Must be a list of email addresses. If one list is missing, then the single provided list
+# is used for both use cases.
+email_recipients_overdue:
+  - "somebody@example.com"
+email_recipients_emergency:
   - "somebody@example.com"
   - "somebody_else@company.io"
 #check: # Parameters for periodic checks for missed checkins / checkouts

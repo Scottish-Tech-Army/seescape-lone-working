@@ -199,6 +199,8 @@ def lambda_handler(event, context):
         }
     }
 
+    logger.info("Returning structure: %s", result)
+
     return result
 
 if __name__== "__main__":

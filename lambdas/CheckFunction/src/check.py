@@ -39,7 +39,7 @@ def send_warning_mail(manager, checkin, appointment):
     lines.append(f"{appointment['bodyPreview']}")
     content = "\r\n".join(lines)
 
-    manager.send_mail(subject, content)
+    manager.send_email("overdue", subject, content)
 
 def get_calendar_items(manager):
     """
@@ -166,5 +166,7 @@ def lambda_handler(event, context):
     resultMap["metrics"]["Meetings checked"] = metrics[METRIC_MEETINGS_CHECKED]
     resultMap["metrics"]["Missed checkins reported"] = metrics[METRIC_CHECKINS_MISSED]
     resultMap["metrics"]["Missed checkouts reported"] = metrics[METRIC_CHECKOUTS_MISSED]
+
+    logger.info("Returning structure: %s", resultMap)
 
     return resultMap
