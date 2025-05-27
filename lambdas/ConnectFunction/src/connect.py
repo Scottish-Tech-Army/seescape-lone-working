@@ -182,6 +182,9 @@ def process_appointments(manager, addresses, action):
         if action == KEY_EMERGENCY:
             # This is considered a success for an emergency call
             success = True
+        else:
+            # Increment the counter for no matching appointments
+            manager.increment_counter(METRIC_APPT_NOT_FOUND)
         return success, "No matching appointments found."
     if len(appointments) > 1:
         logger.info("More than one appointment found for this user - count: %d", len(appointments))
