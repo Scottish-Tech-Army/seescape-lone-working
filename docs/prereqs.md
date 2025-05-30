@@ -20,7 +20,11 @@ All processes documented here are assumed to run using the linux command line, a
 
 This depends on an AWS subscription. It's normally best to use a dedicated subscription.
 
-The AWS CLI must be configured with a profile whose name will be used later in the configuration file, and with a default region that matches where everything is to be deployed.
+The AWS CLI must be configured with a profile whose name will be used later in the configuration file, and with a default region that matches where everything is to be deployed. If your login expires, you can relogin with
+
+~~~bash
+aws sso login --use-device-code
+~~~
 
 ## M365 account
 
