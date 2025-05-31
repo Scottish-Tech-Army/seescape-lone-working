@@ -143,6 +143,14 @@ A good set of end to end tests to try is the following.
 
     - Make sure you can check out of the second meeting immediately.
 
+- Set up two back to back meetings with the changeover being the current time. Mark the first as `Checked-In` (not `Checked-Out`).
+
+    - Check out and check that the first meeting is checked out.
+
+    - Check in and see that the second meeting is checked in now.
+
+    - Check out and see that both meetings are now checked out.
+
 ### Emergencies and missed calls
 
 - Validate that if you leave the meeting without any categories until the start is at least 15 minutes in the past then after 10 minutes (or manually kick the `CheckFunction` lambda):

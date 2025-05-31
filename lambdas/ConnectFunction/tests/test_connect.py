@@ -95,13 +95,23 @@ def test_process_appointments_multiple_matching_appointments(dummy_manager, monk
     ]
     dummy_manager.get_calendar_events.return_value = appointments
     result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_OUT)
-    assert result == (False, 'Multiple possible appointments were found for checkout.')
+    assert result == (False, 'No valid appointments found for checkout.')
 
 def test_process_appointments_early_checkout(dummy_manager, monkeypatch):
     addresses = ["billy@example.com"]
     appointments = [
         make_appointment(categories=["Checked-In", "Checked-Out"], attendee_mails=["jim@example.com", "BILLY@example.com"],starttime="meeting2"),
         make_appointment(categories=["Checked-In"], attendee_mails=["billy@example.com"],starttime="meeting2")
+    ]
+    dummy_manager.get_calendar_events.return_value = appointments
+    result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_OUT)
+    assert result == (True, "Your appointment has been checked out.")
+
+def test_process_appointments_early_checkout_one_checkin(dummy_manager, monkeypatch):
+    addresses = ["billy@example.com"]
+    appointments = [
+        make_appointment(categories=["Checked-In"], attendee_mails=["jim@example.com", "BILLY@example.com"],starttime="meeting2"),
+        make_appointment(categories=[], attendee_mails=["billy@example.com"],starttime="meeting2")
     ]
     dummy_manager.get_calendar_events.return_value = appointments
     result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_OUT)
