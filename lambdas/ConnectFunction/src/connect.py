@@ -199,14 +199,15 @@ def process_appointments(manager, addresses, action):
             logger.info("Multiple appointments found for checkout - count: %d", len(appointments))
             selected_appointments = []
             for appointment in appointments:
-                if utils.CHECKED_OUT not in appointment['categories']:
+                if utils.CHECKED_OUT not in appointment['categories'] and utils.CHECKED_IN in appointment['categories']:
+                    # This is a valid candidate for checkout, as it has been checked in but not checked out.
                     logger.info("Found a valid appointment candidate for checkout at %s (%s), subject: %s",
                                 appointment['start']['dateTime'],
                                 appointment['start']['timeZone'],
                                 appointment['subject'])
                     selected_appointments.append(appointment)
                 else:
-                    logger.info("Ignoring appointment already checked out at %s (%s), subject: %s",
+                    logger.info("Ignoring appointment already checked out or not checked in at %s (%s), subject: %s",
                                 appointment['start']['dateTime'],
                                 appointment['start']['timeZone'],
                                 appointment['subject'])
@@ -216,7 +217,7 @@ def process_appointments(manager, addresses, action):
                 # No appointments left after filtering; everything is already checked out.
                 logger.info("No valid appointments found for checkout")
                 manager.increment_counter(METRIC_APPT_NOT_FOUND)
-                return success, "All possible appointments are already checked out."
+                return success, "No valid appointments found for checkout."
             if len(appointments) > 1:
                 # Multiple appointments left after filtering. Something very wrong going on.
                 logger.info("Multiple valid appointments found for checkout")
