@@ -27,7 +27,7 @@ def dummy_manager():
     manager.send_email = MagicMock()
     return manager
 
-def make_appointment(appointment_id="1", subject="Test Appointment", categories=None, body_preview="", attendee_mails=[]):
+def make_appointment(appointment_id="1", subject="Test Appointment", categories=None, body_preview="", attendee_mails=[], starttime="starttime"):
     if categories is None:
         categories = []
     attendees = []
@@ -42,7 +42,7 @@ def make_appointment(appointment_id="1", subject="Test Appointment", categories=
         "attendees": attendees,
         "bodyPreview": body_preview,
         "body": {"content": "Details"},
-        "start": {"dateTime": "starttime",
+        "start": {"dateTime": starttime,
                   "timeZone": "Etc/GMT"},
         "end": {"dateTime": "endtime",
                 "timeZone": "Etc/GMT"},
@@ -85,14 +85,27 @@ def test_process_appointments_no_matching_appointments(dummy_manager, monkeypatc
     ]
     dummy_manager.get_calendar_events.return_value = appointments
     result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_IN)
+    assert result == (False, 'No matching appointments found.')
 
 def test_process_appointments_multiple_matching_appointments(dummy_manager, monkeypatch):
     addresses = ["billy@example.com"]
     appointments = [
-        make_appointment(categories=[], attendee_mails=["jim@example.com", "BILLY@example.com"]),
-        make_appointment(categories=[], attendee_mails=["billy@example.com"])
+        make_appointment(categories=[], attendee_mails=["jim@example.com", "BILLY@example.com"],starttime="meeting1"),
+        make_appointment(categories=[], attendee_mails=["billy@example.com"],starttime="meeting2")
     ]
     dummy_manager.get_calendar_events.return_value = appointments
+    result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_OUT)
+    assert result == (False, 'Multiple possible appointments were found for checkout.')
+
+def test_process_appointments_early_checkout(dummy_manager, monkeypatch):
+    addresses = ["billy@example.com"]
+    appointments = [
+        make_appointment(categories=["Checked-In", "Checked-Out"], attendee_mails=["jim@example.com", "BILLY@example.com"],starttime="meeting2"),
+        make_appointment(categories=["Checked-In"], attendee_mails=["billy@example.com"],starttime="meeting2")
+    ]
+    dummy_manager.get_calendar_events.return_value = appointments
+    result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_OUT)
+    assert result == (True, "Your appointment has been checked out.")
 
 def test_process_appointments_already_checked_in(dummy_manager, monkeypatch):
     addresses = ["billy@example.com"]
@@ -101,14 +114,18 @@ def test_process_appointments_already_checked_in(dummy_manager, monkeypatch):
         make_appointment(categories=[], attendee_mails=["sue@example.com"])
     ]
     dummy_manager.get_calendar_events.return_value = appointments
+    result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_IN)
+    assert result == (True, "Your appointment has already been checked in.")
 
 def test_process_appointments_already_checked_out(dummy_manager, monkeypatch):
     addresses = ["billy@example.com"]
     appointments = [
-        make_appointment(categories=["Checked-In"], attendee_mails=["jim@example.com", "BILLY@example.com"]),
+        make_appointment(categories=["Checked-In", "Checked-Out"], attendee_mails=["jim@example.com", "BILLY@example.com"]),
         make_appointment(categories=[], attendee_mails=["sue@example.com"])
     ]
     dummy_manager.get_calendar_events.return_value = appointments
+    result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_OUT)
+    assert result == (True, "Your appointment has already been checked out.")
 
 def test_process_appointments_check_out_no_checkin(dummy_manager, monkeypatch):
     addresses = ["billy@example.com"]

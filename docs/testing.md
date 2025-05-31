@@ -129,25 +129,21 @@ A good set of end to end tests to try is the following.
 
     - Dial in to check in again (you should get an "already checked in" message)
 
-    - Try to check out - it should fail (you are likely to be too early)
-
-- Alter the meeting timing so that you can check out (i.e. get the end of the meeting to within 30 minutes of current time).
-
-    - Dial in and check out. The meeting should acquire a `Checked-Out` category.
+    - Try to check out - it work, even though the meeting has only just started. The meeting should acquire a `Checked-Out` category.
 
     - Dial in and check out. This should explain that the meeting is already checked out.
 
     - Remove the checkin and checkout categories, then try to checkout again - it should fail as you have not checked in.
 
-- Set up two back to back meetings with the changeover being the current time. Mark the first as `Checked-In` and then check into the second.
+- Set up two back to back meetings with the changeover being the current time. Mark the first as `Checked-In` (not `Checked-Out`) and then check into the second.
 
-    - You should see that the older meeting gets a `Checked-In` as well as the newer one getting a `Checked-Out`
+    - You should see that the older meeting gets a `Checked-Out` as well as the newer one getting a `Checked-In`
 
     - Try to check in again, and make sure that you get an "already checked out" message.
 
-    - Make sure you can check out of the second meeting.
+    - Make sure you can check out of the second meeting immediately.
 
-### Emergencies
+### Emergencies and missed calls
 
 - Validate that if you leave the meeting without any categories until the start is at least 15 minutes in the past then after 10 minutes (or manually kick the `CheckFunction` lambda):
 

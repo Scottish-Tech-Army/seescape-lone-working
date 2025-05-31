@@ -44,7 +44,7 @@ This costs money to run. Roughly the cost implications are as follows.
 
 - AWS costs are a little more complicated.
 
-    - In AWS the predominant cost is that of the lambda function running with provisioned concurrency. If the provisioned concurrency is set to 1 in configuration (as recommended), then the cost is around $15 (so perhaps £12) per month.
+    - In AWS the predominant cost is that of the lambda function running with provisioned concurrency. If the provisioned concurrency is set to 1 in configuration, then the cost is around $15 (so perhaps £12) per month. If set to zero, then the cost is negligible.
 
     - Each phone call incurs a cost of $0.038 per minute (minimum billing period one minute). If you have 5 staff who make 20 calls per week, and are taking the cost of having a freephone number, then that is around $16 per month - so very comparable to the cost of the lambda provisioning.
 
