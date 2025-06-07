@@ -12,7 +12,25 @@ logger = utils.get_logger()
 
 def send_warning_mail(manager, checkin, appointment):
     """
-    Send a warning message about a meeting for which either checkin or checkout was missed.
+    Sends a warning email about a missed check-in or check-out for an appointment.
+
+    Args:
+        manager (LoneWorkerManager): Manager instance for handling email sending
+        checkin (bool): True if this is about a missed check-in, False for missed check-out
+        appointment (dict): Calendar appointment data containing:
+            - subject: Meeting subject
+            - start: Dict with dateTime (GMT)
+            - end: Dict with dateTime (GMT)
+            - attendees: List of meeting attendees
+            - bodyPreview: Meeting description
+
+    The function:
+    - Constructs an email with appointment details including:
+        - Subject and timing information
+        - List of all attendees
+        - Meeting description
+    - Sends the email using the manager's email functionality
+    - Uses different subject lines for check-in vs check-out scenarios
     """
     logger.info("Sending warning mail")
     if checkin:
@@ -43,21 +61,25 @@ def send_warning_mail(manager, checkin, appointment):
 
 def get_calendar_items(manager):
     """
-    Get Calendar items from the MS Graph API
+    Retrieves two sets of calendar events from MS Graph API that need attention.
 
-    This code reads all two sets of events from the calendar of the configured user and returns them in two arrays.
+    Args:
+        manager (LoneWorkerManager): Manager instance for handling API calls and configuration
 
-    The first array is to catch appointments for which checkin should have occurred. This is those with a
-    start time at least 15 minutes in the past, and no more than 75 minutes in the past.
+    Returns:
+        tuple: (checkin_appointments, checkout_appointments) where:
+            - checkin_appointments (list): Events with start times between ignore_after_min
+              and grace_min minutes in the past (potential missed check-ins)
+            - checkout_appointments (list): Events with end times between ignore_after_min
+              and grace_min minutes in the past (potential missed check-outs)
 
-    The second array is to catch appointments for which checkout should have occurred. This is those with an
-    end time that is at least 15 minutes in the past, and no more than 75 minutes in the past.
+    The function uses two configurable time windows from app_cfg:
+    - grace_min: Number of minutes to wait before considering an action missed (default 15)
+    - ignore_after_min: Number of minutes after which to stop checking (default 75)
 
-    In both cases, we are giving 15 minutes grace, and ignoring anything that is older than 75 minutes.
-
-    All of these numbers are configurable.
-    - The parameter "15" is in "grace_min"
-    - The parameter "75" is in "ignore_after_min"
+    For example, with defaults:
+    - Check-ins: Finds events starting between 75 and 15 minutes ago
+    - Check-outs: Finds events ending between 75 and 15 minutes ago
     """
     logger.info("Get calendar events")
 
@@ -85,7 +107,25 @@ def get_calendar_items(manager):
 
 def process_appointments(manager, appointments, checkin):
     """
-    Process the Appointments
+    Processes a list of appointments to check for missed check-ins or check-outs.
+
+    Args:
+        manager (LoneWorkerManager): Manager instance for handling API calls
+        appointments (list): List of calendar appointments to process
+        checkin (bool): True if checking for missed check-ins, False for missed check-outs
+
+    The function:
+    - Examines each appointment's categories to detect missing actions
+    - Skips appointments that:
+        - Already have the target category (checked-in/out)
+        - Are already marked as missed
+        - Have no check-in when checking for missed check-out
+        - Have no attendees
+    - For problematic appointments:
+        - Sends warning emails
+        - Updates appointment categories and subject
+        - Increments appropriate metrics
+    - Updates metrics for total meetings checked
     """
     if checkin:
         logger.info("Checking for missed checkin")
@@ -142,7 +182,27 @@ def process_appointments(manager, appointments, checkin):
         logger.info("Appointment updated successfully")
 
 def lambda_handler(event, context):
-    """ Lambda Handler"""
+    """
+    AWS Lambda handler for checking missed check-ins and check-outs.
+
+    Args:
+        event (dict): AWS Lambda event (not used in this function)
+        context (LambdaContext): AWS Lambda context object (not used in this function)
+
+    Returns:
+        dict: Response containing:
+            - message: Status message
+            - metrics: Dict containing:
+                - Meetings checked: Total number of meetings processed
+                - Missed checkins reported: Number of missed check-ins found
+                - Missed checkouts reported: Number of missed check-outs found
+
+    The function:
+    - Retrieves relevant calendar appointments
+    - Processes both check-in and check-out scenarios
+    - Emits metrics about the processing
+    - Returns a summary of actions taken
+    """
     manager = utils.LoneWorkerManager("Check", ALL_METRICS)
 
     # Read the relevant appointments from the calendar

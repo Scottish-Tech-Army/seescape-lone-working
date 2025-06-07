@@ -30,12 +30,21 @@ logger = utils.get_logger()
 
 def get_calendar(manager, action, addresses, end_before=None):
     """
-    Get Calendar items from the MS Graph API
+    Retrieves calendar events from MS Graph API based on specified criteria.
 
-    This code reads relevant events from the calendar of the configured user and returns them in an array.
+    Args:
+        manager (LoneWorkerManager): Manager instance for handling API calls and configuration
+        action (str): Type of action being performed (check-in, check-out, emergency)
+        addresses (list): List of email addresses to match against event attendees
+        end_before (str, optional): UTC dateTime string to filter events ending before this time
 
-    If passed an explicit "end_before" (a UTC dateTime string from the graph API) then add to the usual
-    logic a test that the meeting end time is before (or equal to) that time.
+    Returns:
+        list: List of calendar events matching the specified criteria and time filters
+
+    The function applies different time filters based on the action:
+    - Check-in: Looks for meetings starting within the check-in grace period
+    - Check-out: Looks for meetings ending within checkout grace and ignore periods
+    - Emergency: Looks for meetings that could be currently in progress
     """
     logger.info("Get calendar events - action %s, end_before %s", action, end_before)
     app_cfg = manager.get_app_cfg()
@@ -59,9 +68,9 @@ def get_calendar(manager, action, addresses, end_before=None):
         assert action == KEY_EMERGENCY, f"Unexpected action value {action}"
         """
         Look for a meeting due to:
-        - start before 30 (checkin_grace_min) minutes in the future
+        - start before 75 (ignore_after_min) minutes in the future
           (so the user could plausibly have got to this meeting)
-        - end after 30 (checkin_grace_min) minutes in the past
+        - end after 75 (ignore_after_min) minutes in the past
           (so that the user might still be there)
 
         Some examples.
@@ -86,6 +95,7 @@ def get_calendar(manager, action, addresses, end_before=None):
     # Retrieve the appointments
     appointments = manager.get_calendar_events(filter)
 
+    # TODO: I think it would be better if we moved the checking in process_appointments here; it would just be simpler
     # Filter out by address
     matching_appointments = []
     for appointment in appointments:
@@ -107,12 +117,23 @@ def get_calendar(manager, action, addresses, end_before=None):
 
 def update_appointment(manager, appointment, action, ignore_already_done=False):
     """
-    Update an appointment.
+    Updates a calendar appointment with check-in, check-out, or emergency status.
 
-    Real errors are raised by exception (as they all imply graph API errors).
+    Args:
+        manager (LoneWorkerManager): Manager instance for handling API calls
+        appointment (dict): Calendar appointment data to update
+        action (str): Type of action being performed (check-in, check-out, emergency)
+        ignore_already_done (bool, optional): Whether to ignore if action was already performed
 
-    Returns a flag "already_done" to indicate if the category was already present,
-    in which case nothing is done.
+    Returns:
+        bool: True if the action was already performed on this appointment, False otherwise
+
+    The function:
+    - Adds appropriate category to the appointment (checked-in, checked-out, emergency)
+    - Updates the appointment body with a timestamp of when the action occurred
+    - Returns True if the action was already performed (category already present), so nothing was done.
+
+    The action must be one of the KEY_ values.
     """
     # Note that we just use local time here - this is a human readable timestamp, not
     # used for any calculations.
@@ -153,12 +174,23 @@ def update_appointment(manager, appointment, action, ignore_already_done=False):
 
 def process_appointments(manager, addresses, action):
     """
-    Process Appointments
+    Processes calendar appointments for check-in, check-out or emergency actions.
 
-    This method finds relevant appointments and runs through them all, updating categories.
+    Args:
+        manager (LoneWorkerManager): Manager instance for handling API calls
+        addresses (list): List of email addresses to match against appointments
+        action (str): Type of action being performed (check-in, check-out, emergency)
 
-    It updates appointments as necessary, and returns a string indicating what happened and a
-    boolean indicating if it was successful.
+    Returns:
+        tuple: (success, message) where:
+            - success (bool): Whether the operation was successful
+            - message (str): Human-readable description of what happened
+
+    The function:
+    - Finds relevant appointments based on time and attendee criteria
+    - Handles special cases like multiple appointments or missing check-ins
+    - For check-ins, also looks for missed checkouts from previous appointments
+    - Updates appointment categories and body content based on the action
     """
     logger.info("Processing appointments list for action %s, addresses %s", action, addresses)
 
@@ -317,7 +349,30 @@ def process_appointments(manager, addresses, action):
     return success, message
 
 def lambda_handler(event, context):
-    """ Lambda Handler"""
+    """
+    AWS Lambda handler for processing Connect phone system events.
+
+    Args:
+        event (dict): AWS Lambda event containing:
+            - Details.Parameters.buttonpressed: Action selected by caller
+            - Details.ContactData.CustomerEndpoint.Address: Caller's phone number
+        context (LambdaContext): AWS Lambda context object
+
+    Returns:
+        dict: Response containing:
+            - action: Type of action performed
+            - calling number: Phone number of caller
+            - success: Whether the operation succeeded
+            - message: Human-readable result message
+            - appointment check result: (Optional) Result of appointment processing
+
+    The function:
+    - Processes phone system events for check-in, check-out and emergency calls
+    - Maps phone numbers to email addresses
+    - Updates calendar appointments accordingly
+    - Sends emergency notifications when required
+    - Tracks various metrics about system usage
+    """
     logger.info("Received call to handle")
 
     # Assume failure
@@ -376,6 +431,7 @@ def lambda_handler(event, context):
                 message = "Unrecognised phone number."
             else:
                 message = "Unable to find your phone number."
+            manager.increment_counter(METRIC_UNKNOWN_CALLER)
     else:
         logger.info("Emergency action selected")
         subject = "Emergency Assistance Required!"

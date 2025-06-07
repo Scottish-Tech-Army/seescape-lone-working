@@ -19,9 +19,25 @@ EMAIL_RECIPS_EMERGENCY="email_recipients_emergency"
 class LambdaConfig:
     def __init__(self, file_path=None, data=None):
         """
-        Initialize LambdaConfig with a configuration dictionary.
+        Initialize LambdaConfig with configuration data from a file or memory.
 
-        This is read either from a supplied file path, or from the data in memory.
+        Args:
+            file_path (str, optional): Path to YAML configuration file
+            data (str, optional): YAML configuration data as a string
+
+        Raises:
+            AssertionError: If both or neither file_path and data are provided
+            yaml.YAMLError: If YAML parsing fails
+            ValueError: If configuration validation fails
+
+        The configuration must contain:
+        - At least one of email_recipients_overdue or email_recipients_emergency
+        - Optional check and connect sections with timing parameters
+
+        After initialization the following has been done:
+        - Configuration has been validated against JSON schema
+        - Default values are set for missing optional parameters
+        - Both email recipient lists are populated (copying if one is missing)
         """
         assert (file_path is None) != (data is None), "Either file or bucket_name must be provided, but not both"
         self.config = {}
@@ -39,6 +55,25 @@ class LambdaConfig:
         logging.info("Loaded config parameters as follows: %s", json.dumps(self.config, indent=4))
 
     def validate(self):
+        """
+        Validates and normalizes the configuration data.
+
+        Raises:
+            ValueError: If configuration fails JSON schema validation or required fields are missing
+
+        The function:
+        - Validates against a JSON schema that enforces:
+            - Email recipient lists must be non-empty arrays of strings
+            - Timing parameters must be non-negative numbers
+            - No unexpected configuration sections
+        - Sets default values for optional parameters:
+            - check.grace_min: 15
+            - check.ignore_after_min: 75
+            - connect.checkin_grace_min: 15
+            - connect.checkout_grace_min: 15
+            - connect.ignore_after_min: 75
+        - Ensures both email recipient lists exist by copying if one is missing
+        """
         # Define the JSON schema for configuration validation
         schema = {
             "type": "object",
@@ -135,7 +170,18 @@ class LambdaConfig:
 
     def get_email_recipients(self, type):
         """
-        Returns the 'email_recipients' field from the configuration dictionary.
+        Retrieves the email recipients list for a specified notification type.
+
+        Args:
+            type (str): The type of notification, must be either:
+                - "overdue": For missed check-in/out notifications
+                - "emergency": For emergency notifications
+
+        Returns:
+            list: List of email addresses for the specified notification type
+
+        Raises:
+            RuntimeError: If type is not "overdue" or "emergency"
         """
         if type == "overdue":
             return self.config.get(EMAIL_RECIPS_OVERDUE)
@@ -145,12 +191,46 @@ class LambdaConfig:
 
     def get_app_cfg(self, app_name):
         """
-        Returns the app specific config blob
+        Retrieves application-specific configuration.
+
+        Args:
+            app_name (str): Name of the application (case-insensitive)
+                Expected values are "check" or "connect"
+
+        Returns:
+            dict: Configuration dictionary for the specified application, containing:
+                For "check":
+                    - grace_min: Minutes to wait before marking as missed
+                    - ignore_after_min: Minutes after which to stop checking
+                For "connect":
+                    - checkin_grace_min: Minutes grace period for check-ins
+                    - checkout_grace_min: Minutes grace period for check-outs
+                    - ignore_after_min: Minutes after which to stop checking
+
+        Raises:
+            KeyError: If the specified app_name section doesn't exist in config
         """
-        return self.config.get(app_name.lower())
+        return self.config[app_name.lower()]
 
 # For validation purposes, this module must be runnable from the command line.
 def main():
+    """
+    Command-line entry point for configuration validation.
+
+    Usage:
+        python cfg_parser.py <filename>
+
+    Args:
+        sys.argv[1]: Path to configuration file to validate
+
+    Returns:
+        None
+
+    Exits:
+        0: If configuration is valid
+        1: If incorrect number of arguments
+        Raises exception: If configuration is invalid
+    """
     if len(sys.argv) != 2:
         print("Usage: python cfg_parser.py <filename>")
         sys.exit(1)

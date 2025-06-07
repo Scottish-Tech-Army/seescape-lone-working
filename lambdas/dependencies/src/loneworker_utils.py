@@ -22,6 +22,12 @@ logging.basicConfig(level=logging.INFO,
                     datefmt='%Y-%m-%d %H:%M:%S')
 
 def get_logger():
+    """
+    Returns the module's logger instance.
+
+    Returns:
+        logging.Logger: Configured logger instance for this module
+    """
     return logger
 
 # Some constants
@@ -41,7 +47,20 @@ EMERGENCY = "Emergency"
 class LoneWorkerManager:
     def __init__(self, app_type, metric_names=[]):
         """
-        Init method.
+        Initializes a LoneWorkerManager instance for handling lone worker operations.
+
+        Args:
+            app_type (str): Type of application, must be either 'Check' or 'Connect'
+            metric_names (list, optional): List of metric names to initialize with zero values
+
+        Raises:
+            AssertionError: If app_type is not 'Check' or 'Connect'
+
+        The manager:
+        - Reads configuration from AWS Parameter Store
+        - Initializes metrics tracking
+        - Obtains Microsoft Graph API authentication token
+        - Sets up API endpoints for calendar, mail, contacts, and users
         """
         logger.info("Get configuration for app %s", app_type)
         assert app_type in ("Check", "Connect"), "app_type must be either 'Check' or 'Connect'"
@@ -68,7 +87,15 @@ class LoneWorkerManager:
 
     def read_config(self):
         """
-        Read the configuration settings.
+        Reads and validates configuration settings from AWS Parameter Store.
+
+        The function:
+        - Retrieves mandatory parameters (clientid, emailuser, tenant, config, clientsecret)
+        - Validates configuration using cfg_parser
+        - Stores configuration values as instance attributes
+
+        Raises:
+            ValueError: If required parameters are missing or invalid
         """
         self.app_prefix  = os.environ['ssm_prefix']
         logger.info("Reading configuration from %s", self.app_prefix)
@@ -93,10 +120,27 @@ class LoneWorkerManager:
         self.cfg = cfg_parser.LambdaConfig(data=values["config"])
 
     def get_app_cfg(self):
+        """
+        Retrieves application-specific configuration.
+
+        Returns:
+            dict: Configuration dictionary for the current application type (Check/Connect)
+                 containing timing parameters and other app-specific settings
+        """
         return self.cfg.get_app_cfg(self.app_type)
 
     def get_token(self):
-        """ Get Authentication Code token"""
+        """
+        Obtains an authentication token from Microsoft Graph API.
+
+        The function:
+        - Uses client credentials flow for authentication
+        - Requests token from Microsoft OAuth endpoint
+        - Stores token in instance for API calls
+
+        Raises:
+            RuntimeError: If authentication fails with status code and error message
+        """
 
         # Set the authentication endpoint and token endpoint
         auth_endpoint = f"https://login.microsoftonline.com/{self.tenant}/oauth2/v2.0/token"
@@ -128,9 +172,19 @@ class LoneWorkerManager:
 
     def get_calendar_events(self, filter):
         """
-        Get calendar events from the calendar.
+        Retrieves filtered calendar events from Microsoft Graph API.
 
-        These are filtered based on supplied filter
+        Args:
+            filter (str): Microsoft Graph API filter string for calendar events
+
+        Returns:
+            list: Calendar events matching the specified filter
+
+        Raises:
+            RuntimeError: If the calendar API request fails
+
+        Note:
+            The filter should be formatted according to Microsoft Graph API's $filter syntax
         """
         logger.info("Reading calendar events with filter: %s", filter)
         params = {
@@ -150,7 +204,15 @@ class LoneWorkerManager:
 
     def patch_calendar_event(self, event_id, changes):
         """
-        Update a calender event.
+        Updates a calendar event with specified changes.
+
+        Args:
+            event_id (str): ID of the calendar event to update
+            changes (dict): Dictionary of changes to apply to the event
+                          (e.g., {'categories': ['new-category']})
+
+        Raises:
+            RuntimeError: If the calendar update operation fails
         """
         logger.info("Updating calendar event %s with new categories %s", event_id, changes.get("categories"))
         response = requests.patch(f"{self.calendar_url}/{event_id}", headers=self.headers, json=changes)
@@ -210,8 +272,20 @@ class LoneWorkerManager:
 
     def phone_to_email(self, number):
         """
-        Given a phone number, find all the users and contacts who have that phone number as their
-        mobile number, and return an array of matching addresses.
+        Maps a phone number to associated email addresses from contacts and users.
+
+        Args:
+            number (str): Phone number to search for (supports international format)
+
+        Returns:
+            tuple: (addresses, display_name) where:
+                - addresses (list): List of email addresses associated with the phone number
+                - display_name (str): Display name of the first matching contact/user, or "UNKNOWN"
+
+        The function:
+        - Searches both contacts and users directories
+        - Handles international number format (+44) conversion
+        - Returns all matching email addresses in lowercase
         """
         logger.info("Looking for phone number %s", number)
 
@@ -273,6 +347,17 @@ class LoneWorkerManager:
         return addresses, display_name
 
     def init_metrics(self, metric_names):
+        """
+        Initializes CloudWatch metrics tracking.
+
+        Args:
+            metric_names (list): List of metric names to initialize with zero values
+
+        The function:
+        - Sets up CloudWatch client
+        - Initializes metrics namespace using app prefix and type
+        - Creates tracking dictionaries for both current and to-be-emitted metrics
+        """
         # Set up metrics ready to report
         self.cloudwatch = boto3.client('cloudwatch')
         self.metrics_namespace = f"{self.app_prefix}/{self.app_type}"
@@ -287,14 +372,26 @@ class LoneWorkerManager:
 
     def increment_counter(self, name, increment=1):
         """
-        Increment the supplied metric name by that amount
+        Increments a named metric counter.
+
+        Args:
+            name (str): Name of the metric to increment
+            increment (int, optional): Amount to increment by (default: 1)
+
+        The function updates both the current metrics and the to-be-emitted metrics.
         """
         self.metrics[name] += increment
         self.metrics_to_emit[name] += increment
 
     def emit_metrics(self):
         """
-        Emit metrics that have already been stored.
+        Emits accumulated metrics to CloudWatch.
+
+        The function:
+        - Sends all pending metrics to CloudWatch with current timestamp
+        - Uses Count as the unit for all metrics
+        - Clears the to-be-emitted metrics after successful emission
+        - Preserves the total metrics history in the metrics dictionary
         """
         logging.info("Emit metrics array: %s", self.metrics)
         # Metrics timestamps must be in UTC
@@ -327,7 +424,11 @@ class LoneWorkerManager:
 
     def get_metrics(self):
         """
-        Returns all metrics that have been reported, whether emitted or not.
+        Retrieves all recorded metrics.
+
+        Returns:
+            dict: Dictionary of all metrics that have been recorded,
+                 including both emitted and pending metrics
         """
         return self.metrics
 
@@ -377,6 +478,22 @@ def get_params(ssm, prefix, mand_names, optional_names=[]):
 
 class TimeFilter:
     def __init__(self, minutes=None, datetime=None, before_or_after=None, start_or_end=None):
+        """
+        Initializes a time filter for calendar event queries.
+
+        Args:
+            minutes (int, optional): Number of minutes relative to current time
+            datetime (str, optional): Explicit datetime string in Microsoft Graph format
+            before_or_after (str): Must be either 'before' or 'after'
+            start_or_end (str): Must be either 'start' or 'end'
+
+        Raises:
+            ValueError: If neither or both minutes and datetime are provided
+
+        Note:
+            Either minutes or datetime must be provided, but not both.
+            The datetime string must be in Microsoft Graph API format.
+        """
         if (minutes is None and datetime is None) or (minutes is not None and datetime is not None):
             raise ValueError("Exactly one of 'minutes' or 'datetime' must be provided.")
         self.minutes = minutes
@@ -390,21 +507,22 @@ class TimeFilter:
 
 def build_time_filter(time_filters):
     """
-    Given an array of TimeFilters, build a string filter for Microsoft graph APIs
-    that compares the timestamp in a meeting with provided data. Each value in
-    time_filters is a separate clause, and they are all stuck together with
-    "and" statements.
+    Builds a Microsoft Graph API filter string from TimeFilter objects.
 
-    For each time filter.
-    - "minutes" is the number of minutes the test time should be after the current time (negative for past)
-    - "datetime" is the explicit time to test. Only one of minutes and datetime may be specified. This
-      must be a Microsoft Graph dateTime string, which will be passed unchanged (not a datetime object).
-      It must be in UTC / GMT, but without the trailing Z.
-    - "before_or_after" checks whether the test should be for appointment times that are before or after that time
-    - "start_or_end" tests whether it is the appointment start or end time that is being compared.
+    Args:
+        time_filters (list): List of TimeFilter objects defining time constraints
 
-    Filters will assume a timezone if not specified, but adding a "Z" at the end is supported
-    to indicate UTC.
+    Returns:
+        str: Microsoft Graph API filter string combining all time filters with 'and' operators
+
+    Raises:
+        ValueError: If any TimeFilter has invalid before_or_after or start_or_end values
+
+    The function:
+    - Combines multiple time filters with 'and' operators
+    - Handles both relative (minutes-based) and absolute (datetime-based) filters
+    - Ensures all datetime strings are in UTC/GMT format
+    - Supports filtering on both start and end times of events
     """
     logger.info("Number of clauses in time filter: %d", len(time_filters))
     clauses = []

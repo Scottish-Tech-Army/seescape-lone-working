@@ -37,7 +37,7 @@ Resources:
             - lambda.amazonaws.com
       Policies:
       - PolicyName:
-          Fn::Sub: ${app}-lambda-execution-policy
+          Fn::Sub: ${app}-parameter-policy
         PolicyDocument:
           Version: '2012-10-17'
           Statement:
@@ -46,7 +46,7 @@ Resources:
             - ssm:GetParameter
             Effect: Allow
             Resource:
-              Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:*
+              Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${app}/*
       - PolicyName:
           Fn::Sub: ${app}-metrics-policy
         PolicyDocument:
