@@ -15,8 +15,27 @@ logging.basicConfig(level=logging.INFO,
 
 def get_metrics(days_ago, period=3600, bucket=None, app=None):
     """
-    - days_ago: days ago to collect
-    - period: metrics period in seconds
+    Collects CloudWatch metrics for a specific day and writes them to CSV.
+
+    Args:
+        days_ago (int): Number of days in the past to collect metrics for
+        period (int, optional): Metrics aggregation period in seconds (default: 3600)
+        bucket (str): S3 bucket name to write metrics to, if None writes to local file
+        app (str): Application name used in metrics namespace and path construction
+
+    Raises:
+        ValueError: If app or bucket is None, or if days_ago is not a positive integer
+
+    The function:
+    - Collects metrics from AWS/Lambda and app-specific namespaces
+    - Aggregates metrics over the specified period
+    - Writes metrics to CSV with columns:
+        - Namespace
+        - MetricName
+        - Dimensions
+        - Timestamp (as milliseconds since epoch)
+        - Average, Minimum, Maximum, Sum, SampleCount
+    - Stores CSV in year/month based directory structure
     """
     logger.info("Collecting data for %d days ago", days_ago)
     # Firewall args
@@ -128,7 +147,20 @@ def get_metrics(days_ago, period=3600, bucket=None, app=None):
 
 def update_tables(bucket, app):
     """
-    Update the athena tables appropriately."
+    Updates Athena tables to recognize newly added metrics data.
+
+    Args:
+        bucket (str): S3 bucket containing metrics data, if None function returns
+        app (str): Application name used for workgroup and database names
+
+    Raises:
+        RuntimeError: If the Athena query fails or is cancelled
+
+    The function:
+    - Executes MSCK REPAIR TABLE command to update partition metadata
+    - Uses app-specific Athena workgroup and database
+    - Polls query execution until completion
+    - Validates successful execution
     """
     logger.info("Updating athena configuration")
     if bucket is None:
@@ -175,6 +207,31 @@ def update_tables(bucket, app):
         raise RuntimeError(f"Query failed with state '{state}'. Reason: {error_reason}")
 
 def lambda_handler(event, context):
+    """
+    AWS Lambda handler for collecting and storing CloudWatch metrics.
+
+    Args:
+        event (dict): Lambda event containing:
+            - day_range (list, optional): List of days ago to collect metrics for (default: [1])
+        context (LambdaContext): AWS Lambda context object (not used)
+
+    Returns:
+        dict: Execution result containing:
+            - Result: "Success" if execution completed
+            - Inputs: Dictionary of input parameters used:
+                - Bucket: S3 bucket name
+                - App: Application name
+                - Day_range: List of days processed
+
+    Environment Variables Required:
+        - bucket: S3 bucket name for metrics storage
+        - app: Application name for namespacing
+
+    The function:
+    - Collects metrics for each day in the day_range
+    - Writes metrics to S3 in CSV format
+    - Updates Athena table partitions
+    """
     # This reads a range of events from the metrics, and writes them to a CSV file, then points the Athena table at it.
     logger.info("Called with event: %s", event)
     bucket = os.environ["bucket"]
