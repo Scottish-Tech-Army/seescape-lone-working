@@ -175,7 +175,7 @@ def update_tables(bucket, app):
         raise RuntimeError(f"Query failed with state '{state}'. Reason: {error_reason}")
 
 def lambda_handler(event, context):
-    # This reads a range of events from
+    # This reads a range of events from the metrics, and writes them to a CSV file, then points the Athena table at it.
     logger.info("Called with event: %s", event)
     bucket = os.environ["bucket"]
     app = os.environ["app"]

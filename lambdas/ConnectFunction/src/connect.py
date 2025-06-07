@@ -59,9 +59,9 @@ def get_calendar(manager, action, addresses, end_before=None):
         assert action == KEY_EMERGENCY, f"Unexpected action value {action}"
         """
         Look for a meeting due to:
-        - start before 30 (checkin_grace_min) minutes in the future
+        - start before 75 (ignore_after_min) minutes in the future
           (so the user could plausibly have got to this meeting)
-        - end after 30 (checkin_grace_min) minutes in the past
+        - end after 75 (ignore_after_min) minutes in the past
           (so that the user might still be there)
 
         Some examples.
@@ -86,6 +86,7 @@ def get_calendar(manager, action, addresses, end_before=None):
     # Retrieve the appointments
     appointments = manager.get_calendar_events(filter)
 
+    # TODO: I think it would be better if we moved the checking in process_appointments here; it would just be simpler
     # Filter out by address
     matching_appointments = []
     for appointment in appointments:

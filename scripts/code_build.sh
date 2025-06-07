@@ -43,7 +43,7 @@ do
     # We are in lambdas/TARGET/build, and we want a zip file in build
     zip -r ../../../build/${TARGET}.zip .
 
-    # Push those zip files into the S3 bucket
+    # All done for this target
     popd
 done
 

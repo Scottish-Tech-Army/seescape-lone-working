@@ -10,7 +10,7 @@ find . -type d -name ".pytest_cache" -exec rm -rf {} +
 find . -type d -name "__pycache__" -exec rm -rf {} +
 
 # Build the packages
-for TARGET in dependencies ConnectFunction CheckFunction
+for TARGET in dependencies ConnectFunction CheckFunction MetricsFunction
 do
     echo "  Removing venv and build directories for ${TARGET}"
     pushd lambdas/${TARGET} > /dev/null
