@@ -132,6 +132,8 @@ def update_appointment(manager, appointment, action, ignore_already_done=False):
     - Adds appropriate category to the appointment (checked-in, checked-out, emergency)
     - Updates the appointment body with a timestamp of when the action occurred
     - Returns True if the action was already performed (category already present), so nothing was done.
+
+    The action must be one of the KEY_ values.
     """
     # Note that we just use local time here - this is a human readable timestamp, not
     # used for any calculations.
@@ -429,6 +431,7 @@ def lambda_handler(event, context):
                 message = "Unrecognised phone number."
             else:
                 message = "Unable to find your phone number."
+            manager.increment_counter(METRIC_UNKNOWN_CALLER)
     else:
         logger.info("Emergency action selected")
         subject = "Emergency Assistance Required!"

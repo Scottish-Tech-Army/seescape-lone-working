@@ -76,6 +76,10 @@ def get_calendar_items(manager):
     The function uses two configurable time windows from app_cfg:
     - grace_min: Number of minutes to wait before considering an action missed (default 15)
     - ignore_after_min: Number of minutes after which to stop checking (default 75)
+
+    For example, with defaults:
+    - Check-ins: Finds events starting between 75 and 15 minutes ago
+    - Check-outs: Finds events ending between 75 and 15 minutes ago
     """
     logger.info("Get calendar events")
 
