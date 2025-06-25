@@ -22,6 +22,8 @@ This repository contains scripts and instructions for deploying, using and manag
 
 There are documents covering the following.
 
+- There is an [architecture document](docs/architecture.md) that shows the design.
+
 - Before you deploy a new instance, you must have satisfied the [prerequisites to installation](docs/prereqs.md).
 
 - You can then run various steps to perform [deployment creation](docs/creation.md).
