@@ -4,7 +4,7 @@ This document describes testing that can be done.
 
 ## Unit tests
 
-There are some unit tests which run automatically when you run the following.
+There are some unit tests which run automatically when you run the following (after sourcing your environment variables in config).
 
 ~~~bash
 bash scripts/code_test.sh
@@ -16,6 +16,8 @@ These report output to screen. If you just want to test a subset of tests, then 
 cd lambdas/ConnectFunction/tests
 pytest -o log_cli=true -o log_cli_level=info
 ~~~
+
+*These tests are frankly a little limited; they do not report code coverage and could be more complete, but they should always run clean if a change has not broken anything.*
 
 ## Validating credentials
 
@@ -52,7 +54,7 @@ This checks that the lambda functions are doing what they should be doing, witho
 
 - Log into the AWS console, and find Lambda functions (enter `lambda` in the search bar if necessary).
 
-- To validate the `check` function works:
+- To validate the `check` function (which performs routine checks for missed checkins and checkouts):
 
     - Select `CheckFunction`
 
@@ -105,7 +107,7 @@ This checks that the lambda functions are doing what they should be doing, witho
 
     - Ensure that the response looks reasonable.
 
-## End to end testing
+## End to end test plan
 
 *End to end testing assumes that you exist with the correct mobile phone number in the M365 client, [as documented in the user instructions](user.md#configuring-user-accounts), and also that you have access to the shared mailbox to check what is happening.*
 
@@ -170,4 +172,3 @@ A good set of end to end tests to try is the following.
     - The meeting acquires a `Missed-Check-Out` category
 
     - An email is sent about it.
-

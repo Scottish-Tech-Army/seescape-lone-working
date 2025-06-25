@@ -18,13 +18,11 @@ All processes documented here are assumed to run using the linux command line, a
 
 ## AWS subscription
 
-This depends on an AWS subscription. It's normally best to use a dedicated subscription.
+This depends on an AWS subscription (strictly speaking called an account in AWS terminology). It's normally best to use a dedicated subscription.
 
-The AWS CLI must be configured with a profile whose name will be used later in the configuration file, and with a default region that matches where everything is to be deployed. If your login expires, you can relogin with
+The AWS CLI must be configured with a profile whose name will be used later in the configuration file, and with a default region that matches where everything is to be deployed.
 
-~~~bash
-aws sso login --use-device-code
-~~~
+Many commands will error out if your login expires, in which case you should login again using either `aws sso login --use-device-code` or by playing with `.aws/credentials`.
 
 ## M365 account
 
@@ -52,13 +50,13 @@ Store these off securely; you'll need all of them later.
 
 ### Tenant
 
-You must have an M365 business or enterprise tenant to use. Note that you can sign up for a [free M365 tenant as a non-profit](https://www.microsoft.com/en-gb/microsoft-365/nonprofit/), or failing that just create a [new tenant](https://www.microsoft.com/en-gb/microsoft-365/business/microsoft-365-plan-chooser).
+You must have an M365 business or enterprise tenant to use. If you do not have such a tenant, you can sign up for a [free M365 tenant as a non-profit](https://www.microsoft.com/en-gb/microsoft-365/nonprofit/), or failing that just create a [new paid tenant](https://www.microsoft.com/en-gb/microsoft-365/business/microsoft-365-plan-chooser).
 
 Once you have your tenant, you need to [find your organisation's tenant ID](https://learn.microsoft.com/en-us/sharepoint/find-your-office-365-tenant-id), and store it safely for future use.
 
 ### Shared mailbox
 
-You'll need a mailbox in your organisation that can be accessed by staff managing the application and appointments. The easiest type of account to use is a [shared mailbox](https://learn.microsoft.com/en-us/microsoft-365/admin/email/about-shared-mailboxes). To create such an account, perform the following steps.
+You'll need a mailbox in your organisation that can be accessed by staff managing the application and appointments. For this, we use a [shared mailbox](https://learn.microsoft.com/en-us/microsoft-365/admin/email/about-shared-mailboxes). To create such an account, perform the following steps.
 
 - As an administrator, log into the [Microsoft admin centre](https://admin.microsoft.com/Adminportal/Home#/homepage).
 
@@ -72,7 +70,7 @@ You'll need a mailbox in your organisation that can be accessed by staff managin
 
     - Add the users in your organisation that you want to be able to view and manage the shared calendar.
 
-Note down the shared mailbox email address.
+Remember the shared mailbox email address.
 
 ### Application
 
@@ -84,7 +82,7 @@ You now need to create and configure an *application*. This is the term that Mic
 
     - Select `Applications` on the list on the left of the page, and within that select `App Registrations`.
 
-    - Click the create (plus) button and fill out the form
+    - Click the create (plus) button and fill out the fields in the resulting form
 
         - Pick a name (such as `loneworker`). This does not matter, but you'll need to find it again, so pick something memorable.
 
@@ -94,13 +92,13 @@ You now need to create and configure an *application*. This is the term that Mic
 
         - Save off the `client ID` (shown as "Application (client) ID" in the overview)
 
-    - You have an app registration. Create it some credentials.
+    - You have now created an app registration. Create it some credentials.
 
         - Go to `certificates and secrets`. Add a secret and save the value securely. You will never see this value again, so if you lose it, you will have to create a new secret.
 
         - In the `authentication` tab, enable `Allow public flows`
 
-- Now set up permissions under `API permissions` for the app registration in question. You need to do this *for all of the permissions required*.
+- Now set up permissions under `API permissions` for the app registration in question. You need to do this entire process *for all of the permissions required*.
 
     - Click on `Add a permission`
 
@@ -124,7 +122,7 @@ You now need to create and configure an *application*. This is the term that Mic
 
 #### Further client credentials steps
 
-Unfortunately, this grants the application rights to every mailbox in the enterprise, which is not such a good idea. The solution is to use PowerShell to set up permissions to restrict it to a single mailbox (or more accurately to a group consisting of a single mailbox, the shared mailbox you created above). Instructions for this process are the following.
+Unfortunately, this grants the application rights to every mailbox in the enterprise, which is not such a good idea - everything will still work, but you have created credentials that have excessive permissions. The solution is to use PowerShell to set up permissions to restrict it to a single mailbox (or more accurately to a group consisting of a single mailbox, the shared mailbox you created above). Instructions for this process are the following.
 
 - Go to the [Entra Admin Centre](https://entra.microsoft.com)
 
@@ -148,7 +146,7 @@ Unfortunately, this grants the application rights to every mailbox in the enterp
 
 - Use PowerShell to run the commands below; powershell comes with Windows but also exists on linux now.
 
-    - Install the relevant module
+    - Install the relevant module.
 
         ~~~powershell
         Install-Module -Name ExchangeOnlineManagement -Scope CurrentUser
@@ -181,13 +179,13 @@ Once you have set up all of the M365 tenant information, it is very useful to te
 
 ## Config file
 
-You need to create two configuration files for your deployment. Assuming your organisation is called `mycharity`, th
+You need to create two configuration files for your deployment. Assuming your organisation is called `mycharity`, then you should probably create config files called `mycharity_env.yaml` and `mycharity.yaml`.
 
 - There is a YAML document with various parameters in it. An example of this is [`example.yaml` in the config directory](../config/example.yaml).
 
     - Copy this file to create one called `mycharity.yaml` in the `config` directory.
 
-    - Edit it appropriately following the instructions; for most things the defaults are fine, but you'll need to configure email addresses for emergency mails.
+    - Edit it appropriately following the instructions; for most things the defaults are fine, but you'll need to configure email addresses for emergency mails. *These email addresses are the only thing in config files that might be confidential; if so, then you should not check the yaml file in and store it elsewhere.*
 
 - There is a shell script with further parameters that is sourced before running any of the bash commands. An example of this is [`example_env.sh` in the config directory](../config/example_env.sh).
 

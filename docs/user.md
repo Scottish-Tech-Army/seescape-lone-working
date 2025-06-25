@@ -6,7 +6,7 @@ Office staff set up meetings in the calendar of a shared mailbox (the `loneworke
 
 - A lone worker can check in or out of a meeting by calling the application phone number and pressing "1" or "2" respectively.
 
-    - If something goes wrong with the phone call, office staff can manually check a lone worker in or out, by updating fields in the calendar.
+    - If something goes wrong with the phone call, office staff can manually check a lone worker in or out, by updating fields (Outlook categories) in the calendar.
 
 - If a worker fails to check in or check out on time then office staff should investigate.
 
@@ -54,7 +54,7 @@ Users who are managing the shared mailbox calendar can view it in Outlook Web or
 
 Every person who is to be tracked by the lone worker application must have a mobile phone number configured. This can be done in two ways, depending on whether the user has an account in the same organisation or not.
 
-- If the lone worker has an account and email in the Microsoft 365 (Office / Outlook) tenant (organisation), the admin should set the mobile number. *In some tenants, users may have the rights to set their own mobile number, but that is not the Microsoft 365 default.* To set up the mobile number, do the following.
+- If the lone worker has an account and email in the Microsoft 365 (Office / Outlook) tenant (organisation), the admin should set the mobile number. *In some tenants, users may have the rights to set their own mobile number, but that is not the Microsoft 365 default, and so an admin must do it.* To set up the mobile number in the account, do the following.
 
     - Go to the [users tab](https://admin.microsoft.com/Adminportal/Home?#/users) in the Office 365 admin portal.
 
@@ -80,9 +80,9 @@ Once you have set up a lone worker's mobile number, you should have them test it
 
 ### Creating and managing meetings
 
-Whenever a meeting is to occur that must be tracked, it should be created in the shared mailbox calendar in Outlook. Any lone workers who are to attend must be invited (if more than one is invited, any one of them can check the meeting in or out). Alternatively, you can create the meeting in the user mailbox and invite the shared mailbox - whichever is more convenient.
+Whenever a meeting is to occur that must be tracked, it should be created in the shared mailbox calendar in Outlook and any lone workers who are to attend must be invited (if more than one is invited, any one of them can check the meeting in or out. It is also possible to create the meeting in the user mailbox and invite the shared mailbox.
 
-When a meeting has been created, you can view its categories (click on the `Categories` field in the meeting). The following categories may be set by the lone worker application.
+When a meeting has been created, you can view its categories (click on the `Categories` field in the meeting). The following categories are used and may be set by the lone worker application.
 
 - `Checked-In` - the lone worker has checked in for this meeting.
 
@@ -118,7 +118,7 @@ All remote meetings must be added to the shared mailbox as well as the user mail
 
 ### Checking in and out
 
-You must check in within 15 minutes of the start of the meeting, and check out within 15 minutes of the end. To do this, call the phone number for the application when you arrive at or leave from a meeting.
+You must check in within 15 minutes of the start of the meeting, and check out again by 15 minutes after it completes. To do this, call the phone number for the application when you arrive at or leave from a meeting.
 
 - When prompted enter
 
