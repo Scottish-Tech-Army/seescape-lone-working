@@ -22,12 +22,12 @@ This repository contains scripts and instructions for deploying, using and manag
 
 There are documents covering the following.
 
-- [Prerequisites to installation](docs/prereqs.md)
+- Before you deploy a new instance, you must have satisfied the [prerequisites to installation](docs/prereqs.md).
 
-- [Deployment creation](docs/creation.md)
+- You can then run various steps to perform [deployment creation](docs/creation.md).
 
-- [Testing](docs/testing.md)
+- Once installed, you should test using the [testing procedures](docs/testing.md).
 
-- [Subsequent operations](docs/operations.md), such as upgrade, monitoring, and diagnostics collection
+- Upgrade, monitoring, and diagnostics collection are covered in the [operations document](docs/operations.md).
 
-- [User instructions](docs/user.md) (for those using the system, not those responsible for installing or managing it)
+- If you are just using the system (making calls and managing calendars) you should read the [user instructions](docs/user.md).

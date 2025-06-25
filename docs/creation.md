@@ -1,10 +1,12 @@
 # Initial installation
 
-This document specifies how to perform initial installation. It assumes that you have set up all the [prerequisites requirements](prereqs.md).
+This document specifies how to perform initial installation. It assumes that you have set up all the [prerequisites requirements](prereqs.md). You should work through all sections of this document installing the various components in turn.
 
 *All scripts should report success and return a successful return code, or your deployment has failed.*
 
 ## Run scripts to deploy resources
+
+This step deploys the main resources you will be using.
 
 - Check out the repository, and change directory to the root of the repository
 
@@ -33,15 +35,13 @@ This document specifies how to perform initial installation. It assumes that you
     bash scripts/code_push.sh
     ~~~
 
-- Deploy the lambdas using code formation. This deploys the lambdas and also various IAM configuration.
+- Deploy the lambdas using Cloud Formation. This deploys the lambdas, lots of IAM configuration, and the management dashboard.
 
     ~~~bash
     bash scripts/lambdas.sh
     ~~~
 
-All the resources now exist, but there is still configuration to do.
-
-### Update secrets
+## Update secrets
 
 *This process could be automated but is not for security reasons; we do not want passwords or IDs in config files.*
 
@@ -60,7 +60,7 @@ Update the secrets to have the correct values as follows.
 
     *Note that client secrets normally expire; you may need to come back and update it in a few months.*
 
-### Configure Amazon Connect
+## Configure Amazon Connect
 
 This is largely done by script.
 
@@ -88,22 +88,26 @@ Once you have done that you must manually assign a phone number in the AWS Conne
 
 If you call the assigned phone number, you should find that the call is answered.
 
-### Enable metrics export
+## Enable metrics export
 
-Metrics are exposed in an Athena database which can be connected to an external BI solution. Setting this up requires the following script to be run.
+*This section is optional - if you are not going to export your metrics into an external BI solution, you can skip it.*
 
-~~~bash
-bash scripts/athena.sh
-~~~
+Metrics are exposed in an Athena database which can be connected to an external BI solution.
 
-In order to expose this database, you need a SQL alchemy string. You can generate one as follows.
+- Set up the Athena database as follows.
 
-~~~bash
-aws iam create-access-key --user-name AthenaReadOnlyUser
+    ~~~bash
+    bash scripts/athena.sh
+    ~~~
 
-export ACCESS_KEY_ID=<access key id from output to above>
-export SECRET_ACCESS_KEY=<secret access key from output to above>
-export ENCODED_KEY=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$SECRET_ACCESS_KEY")
-export REGION=eu-west-2 # Change if necessary
-echo "awsathena+rest://${ACCESS_KEY_ID}:${ENCODED_KEY}@athena.${REGION}.amazonaws.com/${APP}?s3_staging_dir=s3://${BUCKET_NAME}/metrics/&work_group=${APP}-athena"
-~~~
+- In order to expose this database, you need a SQL alchemy string. You can generate one as follows.
+
+    ~~~bash
+    aws iam create-access-key --user-name AthenaReadOnlyUser
+
+    export ACCESS_KEY_ID=<access key id from output to above>
+    export SECRET_ACCESS_KEY=<secret access key from output to above>
+    export ENCODED_KEY=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$SECRET_ACCESS_KEY")
+    export REGION=eu-west-2 # Change if necessary
+    echo "awsathena+rest://${ACCESS_KEY_ID}:${ENCODED_KEY}@athena.${REGION}.amazonaws.com/${APP}?s3_staging_dir=s3://${BUCKET_NAME}/metrics/&work_group=${APP}-athena"
+    ~~~
