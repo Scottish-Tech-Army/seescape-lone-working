@@ -8,8 +8,7 @@ echo "Cleaning out all python cache and build artefacts"
 
 find . -type d -name ".pytest_cache" -exec rm -rf {} +
 find . -type d -name "__pycache__" -exec rm -rf {} +
-find . -type d -name ".venv-build" -exec rm -rf {} +
-find . -type d -name ".venv-test" -exec rm -rf {} +
+find . -type d -name "venv" -exec rm -rf {} +
 
 # Build the packages
 for TARGET in dependencies ConnectFunction CheckFunction MetricsFunction

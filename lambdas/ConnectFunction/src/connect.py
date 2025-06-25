@@ -453,6 +453,7 @@ def lambda_handler(event, context):
 
         # We consider having sent the email as a success, even if we could not find the meeting.
         success = True
+        manager.increment_counter(METRIC_SUCCESS)
 
     # Report back metrics
     manager.emit_metrics()
