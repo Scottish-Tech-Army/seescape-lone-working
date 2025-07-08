@@ -103,11 +103,17 @@ Metrics are exposed in an Athena database which can be connected to an external 
 - In order to expose this database, you need a SQL alchemy string. You can generate one as follows.
 
     ~~~bash
-    aws iam create-access-key --user-name AthenaReadOnlyUser
-
-    export ACCESS_KEY_ID=<access key id from output to above>
-    export SECRET_ACCESS_KEY=<secret access key from output to above>
-    export ENCODED_KEY=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$SECRET_ACCESS_KEY")
-    export REGION=eu-west-2 # Change if necessary
-    echo "awsathena+rest://${ACCESS_KEY_ID}:${ENCODED_KEY}@athena.${REGION}.amazonaws.com/${APP}?s3_staging_dir=s3://${BUCKET_NAME}/metrics/&work_group=${APP}-athena"
+    bash scripts/create_sql_alchemy.sh
     ~~~
+
+    This reports output something like this.
+
+    ~~~
+    Using region: eu-west-2
+    Access Key ID found OK
+    Secret access Key ID found OK
+
+    Encoded key follows on next line:
+    awsathena+rest://ACCESS_KEY_ID:ENCODED_KEY@athena.REGION.amazonaws.com/loneworker?s3_staging_dir=s3://BUCKET_NAME/metrics/&work_group=loneworker-athena"
+    ~~~
+
