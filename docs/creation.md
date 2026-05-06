@@ -119,6 +119,3 @@ Metrics are exposed in an Athena database which can be connected to an external 
     awsathena+rest://ACCESS_KEY_ID:ENCODED_KEY@athena.REGION.amazonaws.com/loneworker?s3_staging_dir=s3://BUCKET_NAME/metrics/&work_group=loneworker-athena"
     ~~~
 
-## Configure alerts
-
-xxx

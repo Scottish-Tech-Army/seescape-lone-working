@@ -2,9 +2,11 @@
 
 *This is still rather basic, but gets the key ideas across.*
 
-### Alert configuration
+This document covers operational tasks for a deployed instance: alert configuration, upgrading to a new code version, routine monitoring, and cost expectations.
 
-CloudWatch alarms are configured for Lambda errors and throttles on the Connect and Check functions. When any of these alarms fires, it publishes to an SNS topic named `${APP}-alerts` (normally `loneworker-alerts`). Email subscribers to that topic are notified.
+## Alert configuration
+
+CloudWatch alarms are configured for Lambda errors and throttles on the Connect and Check functions. When any of these alarms fires, it publishes to an SNS topic named `${APP}-alerts` (normally `loneworker-alerts`). The topic is created automatically when you run `bash scripts/lambdas.sh`; you only need to add subscribers. Email subscribers to that topic are notified.
 
 You should subscribe at least one human inbox - typically the support engineer - so that errors are not missed. The shared mailbox can also be subscribed if desired, though this should be considered carefully to avoid noise.
 
