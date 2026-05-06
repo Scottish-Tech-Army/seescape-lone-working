@@ -2,6 +2,30 @@
 
 *This is still rather basic, but gets the key ideas across.*
 
+### Alert configuration
+
+CloudWatch alarms are configured for Lambda errors and throttles on the Connect and Check functions. When any of these alarms fires, it publishes to an SNS topic named `${APP}-alerts` (normally `loneworker-alerts`). Email subscribers to that topic are notified.
+
+You should subscribe at least one human inbox - typically the support engineer - so that errors are not missed. The shared mailbox can also be subscribed if desired, though this should be considered carefully to avoid noise.
+
+Subscriptions are not managed in CloudFormation; they are added in the AWS console and persist across stack updates.
+
+To subscribe an email address:
+
+- Go to the AWS console and find SNS (enter `SNS` in the search bar).
+
+- Select `Topics` on the left, then click the `${APP}-alerts` topic.
+
+- Click `Create subscription`.
+
+- Set `Protocol` to `Email` and `Endpoint` to the address you want to notify.
+
+- Click `Create subscription`.
+
+- The recipient will receive a confirmation email from AWS. They must click the link in that email before notifications will be delivered.
+
+To remove a subscriber, find the subscription in the same topic and delete it.
+
 ## Upgrading to new version of code
 
 In order to take a new version of the code, you should follow the process below.
