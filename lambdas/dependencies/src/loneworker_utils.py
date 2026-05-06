@@ -91,6 +91,7 @@ class LoneWorkerManager:
 
         The function:
         - Retrieves mandatory parameters (clientid, emailuser, tenant, config, clientsecret)
+        - Retrieves optional parameter clientsecretexpiry (None if not set)
         - Validates configuration using cfg_parser
         - Stores configuration values as instance attributes
 
@@ -104,13 +105,17 @@ class LoneWorkerManager:
         ssm = boto3.client('ssm')
         self.app_prefix = os.environ['ssm_prefix']
         mand_names = ["clientid", "emailuser", "tenant", "config", "clientsecret"]
-        optional_names = []
+        # clientsecretexpiry is optional so existing deployments continue to start
+        # while the operator adds the new parameter; a missing value is handled the
+        # same way as an unparseable one (CheckFunction reports days=1000 → invalid alarm).
+        optional_names = ["clientsecretexpiry"]
         values = get_params(ssm, self.app_prefix, mand_names=mand_names, optional_names=optional_names)
 
         self.client_id = values["clientid"]
         self.client_secret = values["clientsecret"]
         self.username = values["emailuser"]
         self.tenant = values["tenant"]
+        self.client_secret_expiry = values["clientsecretexpiry"]
 
         # Trace some things.
         logger.info("Tenant: %s, Client ID: %s, username: %s", self.tenant, self.client_id, self.username)

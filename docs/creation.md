@@ -53,14 +53,15 @@ Update the secrets to have the correct values as follows.
 
 - Find the "AWS Systems Manager/Parameter Store" - this can be found by entering `Parameter Store` in the search box.
 
-- For each of the four parameters, enter the correct value (all of which you should have noted down during the prerequisites stage).
+- For each of the five parameters, enter the correct value (all of which you should have noted down during the prerequisites stage).
 
     - `/${APP}/tenant`: Tenant ID, the GUID for your organisation
     - `/${APP}/clientid`: Client ID for the M365 application, a GUID
-    - `/${APP}/clientsecret`: Client secret for the M365 application
+    - `/${APP}/clientsecret`: Client secret for the M365 application — the **secret value**, not the secret ID. (Sigh.)
+    - `/${APP}/clientsecretexpiry`: The expiry date of the client secret as ISO 8601 (`YYYY-MM-DD`), as shown in Entra. Stored as a plain `String` (the date is not sensitive). Until this is set to a real date, the `Client Secret Expiry Invalid` alarm will fire.
     - `/${APP}/emailuser`: Email address of the shared mailbox
 
-    *Note that client secrets normally expire; you may need to come back and update it in a few months.*
+    *Client secrets expire periodically. When that approaches, you will receive an alert email; follow the [client secret rotation procedure](operations.md#client-secret-rotation) to refresh both `clientsecret` and `clientsecretexpiry`.*
 
 ## Configure Amazon Connect
 

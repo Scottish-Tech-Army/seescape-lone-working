@@ -42,4 +42,12 @@ aws ssm put-parameter --name /${APP}/emailuser --description "Email user (in for
                       --value "DummySecretValue" --type "SecureString" \
                       --tags ${TAGS}
 
+# Dummy expiry deliberately set far in the future so that the
+# ClientSecretExpiryInvalidAlarm fires until the operator records the real
+# date alongside the real client secret.
+echo "  client secret expiry date"
+aws ssm put-parameter --name /${APP}/clientsecretexpiry --description "ISO 8601 date (YYYY-MM-DD) when the client secret expires" \
+                      --value "9999-12-31" --type "String" \
+                      --tags ${TAGS}
+
 echo "SUCCESS"
