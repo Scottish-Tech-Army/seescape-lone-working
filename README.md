@@ -30,6 +30,6 @@ There are documents covering the following.
 
 - Once installed, you should test using the [testing procedures](docs/testing.md).
 
-- Upgrade, monitoring, and diagnostics collection are covered in the [operations document](docs/operations.md).
+- Upgrade, monitoring, alerting, and diagnostics collection are covered in the [operations document](docs/operations.md).
 
 - If you are just using the system (making calls and managing calendars) you should read the [user instructions](docs/user.md).

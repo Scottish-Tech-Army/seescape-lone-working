@@ -16,7 +16,16 @@ fi
 
 echo "Loading configuration file ${CFG_FULL_PATH}"
 echo "  Validating file"
-python lambdas/dependencies/src/cfg_parser.py ${CFG_FULL_PATH}
+
+# Validation runs cfg_parser.py, which imports jsonschema. We use a top-level
+# venv so the dependency does not have to be installed on the host Python.
+# The venv is named "venv" so .gitignore and code_clean.sh pick it up.
+if [ ! -d venv ]; then
+    echo "  Creating venv for scripts"
+    python -m venv venv
+fi
+venv/bin/pip install --quiet -r scripts/requirements.txt
+venv/bin/python lambdas/dependencies/src/cfg_parser.py ${CFG_FULL_PATH}
 
 # Validated - upload.
 echo "  Uploading to parameter store"

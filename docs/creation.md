@@ -28,7 +28,7 @@ This step deploys the main resources you will be using.
     bash scripts/initial.sh
     ~~~
 
-- Build and push the code. *This reports that it is ignoring some lambdas that do not exist yet - this is benign.*
+- Build and push the code.
 
     ~~~bash
     bash scripts/code_build.sh notest
@@ -40,6 +40,8 @@ This step deploys the main resources you will be using.
     ~~~bash
     bash scripts/lambdas.sh
     ~~~
+
+- Subscribe at least one email address to the alert SNS topic so that errors are noticed. Follow the [alert configuration instructions](operations.md#alert-configuration).
 
 ## Update secrets
 

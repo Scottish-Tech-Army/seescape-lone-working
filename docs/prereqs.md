@@ -10,7 +10,7 @@ You must have done all the following before you start installation.
 
 All processes documented here are assumed to run using the linux command line, and depend on:
 
-- python
+- python 3 with the `venv` module (scripts create a virtualenv at `venv/` in the repo root and install their Python dependencies from `scripts/requirements.txt` automatically — no host-side `pip install` is required).
 
 - The AWS CLI
 
