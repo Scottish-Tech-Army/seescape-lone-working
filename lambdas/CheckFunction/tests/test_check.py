@@ -10,8 +10,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../dependencies/s
 dummy_boto3 = types.ModuleType("boto3")
 sys.modules["boto3"] = dummy_boto3
 
+from datetime import date
+
 import pytest
-from check import send_warning_mail
+from check import send_warning_mail, days_to_expiry, INVALID_DAYS_TO_EXPIRY
 
 class DummyManager:
     def __init__(self):
@@ -47,6 +49,49 @@ def test_send_warning_mail_checkin():
     assert manager.sent_mail[0] == "overdue"
     assert manager.sent_mail[1] == expected_subject
     assert manager.sent_mail[2] == expected_content
+
+
+# ---- days_to_expiry ----
+
+# Fixed reference date so tests are deterministic and survive the calendar.
+TODAY = date(2026, 5, 6)
+
+def test_days_to_expiry_future_date():
+    # 30 days ahead → 30 days
+    assert days_to_expiry("2026-06-05", today=TODAY) == 30
+
+def test_days_to_expiry_today():
+    assert days_to_expiry("2026-05-06", today=TODAY) == 0
+
+def test_days_to_expiry_expired():
+    # Already expired by 5 days — clamped to 0 so CloudWatch's Count unit
+    # accepts the value. The < 7 alarm is already firing and the secret will
+    # start failing, so other alarms cover the "actually expired" case.
+    assert days_to_expiry("2026-05-01", today=TODAY) == 0
+
+def test_days_to_expiry_far_future():
+    # Far-future placeholder — well above the 366-day invalid threshold
+    days = days_to_expiry("9999-12-31", today=TODAY)
+    assert days > 366
+
+def test_days_to_expiry_none():
+    # Missing SSM parameter — surfaces as None
+    assert days_to_expiry(None, today=TODAY) == INVALID_DAYS_TO_EXPIRY
+
+def test_days_to_expiry_empty_string():
+    assert days_to_expiry("", today=TODAY) == INVALID_DAYS_TO_EXPIRY
+
+def test_days_to_expiry_garbage():
+    assert days_to_expiry("not a date", today=TODAY) == INVALID_DAYS_TO_EXPIRY
+
+def test_days_to_expiry_wrong_format():
+    # Common mistake: UK format
+    assert days_to_expiry("06/05/2026", today=TODAY) == INVALID_DAYS_TO_EXPIRY
+
+def test_days_to_expiry_strips_whitespace():
+    # Operators may paste with trailing whitespace; tolerate it
+    assert days_to_expiry("  2026-06-05  ", today=TODAY) == 30
+
 
 def test_send_warning_mail_checkout():
     manager = DummyManager()
