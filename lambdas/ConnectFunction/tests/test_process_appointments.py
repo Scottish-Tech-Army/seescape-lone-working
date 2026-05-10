@@ -13,11 +13,7 @@ dummy_boto3 = types.ModuleType("boto3")
 sys.modules["boto3"] = dummy_boto3
 
 import connect
-import loneworker_utils as utils
-
-@pytest.fixture(autouse=True)
-def patch_build_time_filter(monkeypatch):
-    monkeypatch.setattr(utils, "build_time_filter", lambda time_filters: "dummy-filter")
+import loneworker_utils as utils  # noqa: F401
 
 @pytest.fixture
 def dummy_manager():
@@ -191,3 +187,84 @@ class TestProcessAppointmentsGeneral:
         addresses = ["billy@example.com"]
         with pytest.raises(AssertionError):
             connect.process_appointments(dummy_manager, addresses, "invalid_action")
+
+
+class TestProcessAppointmentsRecurring:
+    """Tests for recurring-meeting scenarios.
+
+    /calendarView server-expands recurrence into one event per occurrence in the
+    queried window. Each occurrence has its own id (different from the series
+    master) that PATCH-es only that occurrence. The consumer code
+    (`process_appointments`) is intentionally id-agnostic, but these tests pin
+    the contract so that any future change which strips, derives, or substitutes
+    the id will fail.
+    """
+
+    # A realistic Graph occurrence id has the master id followed by `_R<utc>`.
+    # The exact format does not matter to our code; what matters is that we
+    # PATCH this exact string and never the master id.
+    OCCURRENCE_ID = "AAMkAGI2_master_part_R20260513T140000000Z"
+    MASTER_ID = "AAMkAGI2_master_part"
+
+    def test_single_instance_regression(self, dummy_manager):
+        """A non-recurring event with a plain id PATCHes via that id (regression)."""
+        addresses = ["billy@example.com"]
+        single = make_appointment(appointment_id="single-event-1234",
+                                  categories=[], attendee_mails=addresses)
+        dummy_manager.get_calendar_events.side_effect = [[single], []]
+
+        success, _ = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_IN)
+
+        assert success is True
+        dummy_manager.patch_calendar_event.assert_called_once()
+        patched_id, _ = dummy_manager.patch_calendar_event.call_args.args
+        assert patched_id == "single-event-1234"
+
+    def test_occurrence_id_patched_verbatim(self, dummy_manager):
+        """A recurring occurrence is PATCHed by the occurrence id, not the master."""
+        addresses = ["billy@example.com"]
+        occurrence = make_appointment(appointment_id=self.OCCURRENCE_ID,
+                                      categories=[], attendee_mails=addresses)
+        dummy_manager.get_calendar_events.side_effect = [[occurrence], []]
+
+        success, _ = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_IN)
+
+        assert success is True
+        dummy_manager.patch_calendar_event.assert_called_once()
+        patched_id, _ = dummy_manager.patch_calendar_event.call_args.args
+        assert patched_id == self.OCCURRENCE_ID
+        assert patched_id != self.MASTER_ID
+
+    def test_rescheduled_occurrence_processed_normally(self, dummy_manager):
+        """A modified-time exception is just an occurrence at a moved time with its own id."""
+        addresses = ["billy@example.com"]
+        # The moved time is irrelevant to consumer code; what matters is that the
+        # event flows through identically to any other occurrence.
+        rescheduled = make_appointment(appointment_id=self.OCCURRENCE_ID,
+                                       categories=[],
+                                       attendee_mails=addresses,
+                                       starttime="2026-05-13T16:30:00.0000000")
+        dummy_manager.get_calendar_events.side_effect = [[rescheduled], []]
+
+        success, message = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_IN)
+
+        assert success is True
+        assert message == "Your appointment has been checked in."
+        patched_id, _ = dummy_manager.patch_calendar_event.call_args.args
+        assert patched_id == self.OCCURRENCE_ID
+
+    def test_cancelled_occurrence_omitted(self, dummy_manager):
+        """A cancelled occurrence is not returned by /calendarView, so no match is found.
+
+        Graph omits cancelled occurrences from `/calendarView` server-side, so by
+        the time `process_appointments` runs the call site has already received
+        an empty list. This test pins the user-visible behaviour for that case.
+        """
+        addresses = ["billy@example.com"]
+        dummy_manager.get_calendar_events.return_value = []
+
+        success, message = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_IN)
+
+        assert success is False
+        assert message == "No matching appointments found."
+        dummy_manager.patch_calendar_event.assert_not_called()

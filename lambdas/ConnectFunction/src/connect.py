@@ -69,7 +69,7 @@ def get_calendar(manager, action, addresses, end_before=None):
         """
         Look for a meeting due to:
         - start before 75 (ignore_after_min) minutes in the future
-          (so the user could plausibly have got to this meeting)
+          (so the user could plausibly have gto this meeting)
         - end after 75 (ignore_after_min) minutes in the past
           (so that the user might still be there)
 
@@ -90,15 +90,18 @@ def get_calendar(manager, action, addresses, end_before=None):
         logger.info("Explicit end before of %s", end_before)
         time_filters.append(utils.TimeFilter(datetime=end_before, before_or_after=utils.BEFORE, start_or_end=utils.END))
 
-    filter = utils.build_time_filter(time_filters)
-
-    # Retrieve the appointments
-    appointments = manager.get_calendar_events(filter)
+    # Retrieve the appointments. get_calendar_events queries /calendarView over
+    # a wide window (so individual occurrences of recurring series are visible)
+    # and applies these TimeFilters client-side to narrow to the scenario window.
+    appointments = manager.get_calendar_events(time_filters)
 
     # TODO: I think it would be better if we moved the checking in process_appointments here; it would just be simpler
     # Filter out by address
     matching_appointments = []
     for appointment in appointments:
+        logger.info("Checking appointment %s attendees: %s",
+                    appointment['subject'],
+                    [a['emailAddress']['address'] for a in appointment['attendees']])
         for attendee in appointment['attendees']:
             address = attendee['emailAddress']['address'].lower()
 

@@ -172,3 +172,95 @@ A good set of end to end tests to try is the following.
     - The meeting acquires a `Missed-Check-Out` category
 
     - An email is sent about it.
+
+### Recurring meetings
+
+These tests check that recurring meetings are handled correctly: each occurrence in a series should be treated as its own appointment, and any category or body change should affect only that occurrence — not the series master, and not sibling occurrences.
+
+For setup, "daily recurring meeting" means a series whose recurrence pattern is daily. A daily cadence is convenient for testing because today's and tomorrow's occurrences are easy to inspect side-by-side; the same behaviour applies to weekly or monthly cadences.
+
+After every step that mutates a meeting, inspect both the **series master** (the original recurring event) and at least one **sibling occurrence** (e.g. tomorrow's) in Outlook to confirm they are unmodified, in addition to checking the targeted occurrence.
+
+#### Check-in and check-out on a current occurrence
+
+- Create a daily recurring meeting that started yesterday at the current time of day (so today's occurrence is starting around now), runs for an hour, and recurs daily for at least three more days. Add your phone number's email address as the only attendee.
+
+    - Dial in to check in (`1` option). The call should succeed.
+
+    - Confirm that **today's occurrence only** has the `Checked-In` category. The series master and tomorrow's occurrence should be unmodified.
+
+    - Dial in to check out (`2` option). The call should succeed.
+
+    - Confirm that today's occurrence now has both `Checked-In` and `Checked-Out`, and that the series master and tomorrow's occurrence are still unmodified.
+
+    - Dial in to check in again — you should get an "already checked in" message.
+
+    - Dial in to check out again — you should get an "already checked out" message.
+
+#### Missed check-in on a recurring occurrence
+
+- Create a daily recurring meeting that started yesterday at a time of day that is now between 15 and 75 minutes ago (so today's occurrence falls in the missed-check-in window). Include your phone number's email as the only attendee. Do not check in.
+
+    - Wait for the next `CheckFunction` run, or kick it manually.
+
+    - Today's occurrence should acquire a `Missed-Check-In` category. The series master and tomorrow's occurrence should not.
+
+    - A mail should be sent.
+
+    - Kick `CheckFunction` again; you should not get another mail.
+
+#### Missed check-out on a recurring occurrence
+
+Note: Outlook's GUI only lets you edit categories on the entire series, not on a single occurrence, so the setup uses the tooling itself to put `Checked-In` on a single occurrence and then drags the occurrence in Outlook (which is per-occurrence) to push the end time into the missed-checkout window.
+
+- Create a fresh daily recurring meeting whose current occurrence's start time is now (so it falls in the check-in window). Include your phone number's email as the only attendee.
+
+    - Dial in to check in. Today's occurrence acquires `Checked-In`. The series master and tomorrow's occurrence should be unmodified.
+
+    - In Outlook, drag *just today's occurrence* so it now starts about an hour ago and ends about 30 minutes ago (firmly inside the missed-checkout window of 15–75 minutes after the end time).
+
+    - Wait for `CheckFunction` to run, or kick it manually.
+
+    - Today's occurrence should acquire a `Missed-Check-Out` category. The series master and tomorrow's occurrence should not.
+
+    - A mail should be sent.
+
+#### Emergency on a recurring occurrence
+
+- Create a daily recurring meeting whose current occurrence is in progress now. Include your phone number's email as the only attendee.
+
+    - Dial in and select `3` (emergency).
+
+    - An emergency mail should be sent.
+
+    - Today's occurrence should acquire an `Emergency` category. The series master and tomorrow's occurrence should not.
+
+#### Rescheduled occurrence
+
+- Create a daily recurring meeting whose master time of day is one hour ago, so today's occurrence as originally scheduled is now outside the check-in window. In Outlook, drag today's occurrence so it now starts around the current time. Include your phone number's email as attendee.
+
+    - Dial in to check in. The call should succeed and the rescheduled occurrence should acquire `Checked-In`. The series master and the other occurrences should be unmodified.
+
+#### Cancelled occurrence
+
+- Create a daily recurring meeting whose master time of day is the current time of day. In Outlook, cancel just today's occurrence (delete it from the series — do not delete the whole series). Include your phone number's email as attendee.
+
+    - Dial in to check in. You should get a "no matching appointment" message — the cancelled occurrence must not be matched, and the tooling must not fall back to matching the series master.
+
+#### Mixed: recurring series alongside a one-off meeting
+
+- With a daily recurring series in progress now (as set up in the first test above), additionally create a single-instance meeting at the same time with a different attendee (someone else's email).
+
+    - Dial in to check in. The recurring series's current occurrence should be checked in; the single-instance meeting must remain unmodified.
+
+#### Edit-series footgun
+
+This documents an Outlook-side behaviour that the tooling cannot prevent: editing a recurring series's *non-category* properties (time, subject, attendees, …) silently wipes per-occurrence categories that the tooling has set, leaving no record that a check-in or check-out had happened. The detailed Graph/Outlook semantics are nuanced (a series-level *category* edit respects per-occurrence exceptions, while a series-level edit of anything else does not), but the user-facing summary is simply: editing a recurring series can clobber tooling-set state on its occurrences. This test pins the behaviour so future regressions are caught.
+
+- Reuse the daily recurring meeting from the first test in this section, after both check-in and check-out have run (so today's occurrence carries `Checked-In` and `Checked-Out`).
+
+    - In Outlook, edit the series — change something other than categories (e.g. the subject, or the time of day) and save with "all events in the series".
+
+    - Re-inspect today's occurrence: the `Checked-In` and `Checked-Out` categories should have been wiped. This is expected Outlook behaviour, not a tooling bug.
+
+    - Confirm that the tooling itself was not involved (no Connect/Check Lambda invocation in CloudWatch around the edit time). The category change came purely from Outlook's series-edit semantics.
