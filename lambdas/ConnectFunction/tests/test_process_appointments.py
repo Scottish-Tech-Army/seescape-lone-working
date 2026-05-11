@@ -69,6 +69,8 @@ class TestProcessAppointmentsCheckin:
         monkeypatch.setattr(dummy_manager, "get_calendar_events", MagicMock(side_effect=[appointments, second_appointments]))
         result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_IN)
         assert result == (True, "Your appointment has been checked in. An earlier appointment has also been checked out.")
+        # The recovery branch retro-actively completes the earlier meeting.
+        dummy_manager.increment_counter.assert_any_call(connect.METRIC_MEETINGS_COMPLETED_OK)
 
     def test_already_checked_in(self, dummy_manager):
         """Test attempting to check in to an already checked-in appointment"""
@@ -104,6 +106,7 @@ class TestProcessAppointmentsCheckout:
         dummy_manager.get_calendar_events.return_value = appointments
         result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_OUT)
         assert result == (True, "Your appointment has been checked out.")
+        dummy_manager.increment_counter.assert_any_call(connect.METRIC_MEETINGS_COMPLETED_OK)
 
     def test_checkout_without_checkin(self, dummy_manager):
         """Test attempting to check out without having checked in"""
@@ -125,6 +128,9 @@ class TestProcessAppointmentsCheckout:
         dummy_manager.get_calendar_events.return_value = appointments
         result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_OUT)
         assert result == (True, "Your appointment has already been checked out.")
+        # A duplicate checkout must not count as a completed meeting.
+        metric_names = [c.args[0] for c in dummy_manager.increment_counter.call_args_list]
+        assert connect.METRIC_MEETINGS_COMPLETED_OK not in metric_names
 
     def test_early_checkout_single_valid(self, dummy_manager):
         """Test early check-out with one valid appointment among multiple"""
@@ -136,6 +142,7 @@ class TestProcessAppointmentsCheckout:
         dummy_manager.get_calendar_events.return_value = appointments
         result = connect.process_appointments(dummy_manager, addresses, connect.KEY_CHECK_OUT)
         assert result == (True, "Your appointment has been checked out.")
+        dummy_manager.increment_counter.assert_any_call(connect.METRIC_MEETINGS_COMPLETED_OK)
 
     def test_early_checkout_no_valid_appointments(self, dummy_manager):
         """Test early check-out with no valid appointments found"""

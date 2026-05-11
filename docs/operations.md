@@ -110,6 +110,16 @@ You can find logs, dashboards and metrics under CloudWatch.
 
 - The dashboard is named with the value of `${APP}`, which is normally `loneworker`. This shows how many calls to the Lambda functions of different types have occurred.
 
+- At the top of the dashboard, the **Meeting outcomes and incidents** banner gives the three meeting outcomes at a glance, alongside emergency calls and lambda errors/throttles. Every meeting tracked by the application ends in exactly one of these three outcomes:
+
+    - **Meetings completed OK** — a lone worker successfully checked in and then checked out. Incremented once per meeting, not once per call, so a repeat-checkout call does not double-count.
+
+    - **Checkins missed** — the meeting started but no checkin call ever arrived (the `CheckFunction` background scan detected this and sent a warning email).
+
+    - **Checkouts missed** — the worker checked in but never checked out.
+
+    A healthy day should be dominated by "Meetings completed OK"; the two "missed" counters should normally be zero or very small.
+
 - You should also be able to find logs for all calls to the lambda functions.
 
 ### Costs

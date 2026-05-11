@@ -15,6 +15,7 @@ METRIC_UNKNOWN_CALLER = "UnknownCaller"
 METRIC_APPT_NOT_FOUND = "NoMatchingAppointment"
 METRIC_DUPLICATE_CALL = "DuplicateCall"
 METRIC_SUCCESS = "Success"
+METRIC_MEETINGS_COMPLETED_OK = "MeetingsCompletedOK"
 
 ALL_METRICS = [
     METRIC_CHECKINS,
@@ -24,6 +25,7 @@ ALL_METRICS = [
     METRIC_APPT_NOT_FOUND,
     METRIC_DUPLICATE_CALL,
     METRIC_SUCCESS,
+    METRIC_MEETINGS_COMPLETED_OK,
 ]
 
 logger = utils.get_logger()
@@ -303,6 +305,8 @@ def process_appointments(manager, addresses, action):
                 manager.increment_counter(METRIC_DUPLICATE_CALL)
             else:
                 message = "Emergency already registered."
+        elif action == KEY_CHECK_OUT:
+            manager.increment_counter(METRIC_MEETINGS_COMPLETED_OK)
 
     # If we got here, we consider it a success
     logger.info("Success!")
@@ -348,6 +352,7 @@ def process_appointments(manager, addresses, action):
             # We update the message - terminating the sentence and adding the second batch
             logger.info("Found a missed checkout")
             message += " An earlier appointment has also been checked out."
+            manager.increment_counter(METRIC_MEETINGS_COMPLETED_OK)
 
     return success, message
 

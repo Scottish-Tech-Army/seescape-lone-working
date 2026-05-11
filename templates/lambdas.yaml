@@ -273,11 +273,13 @@ Resources:
           Properties:
             Schedule: cron(0 1 * * ? *)
             Input: '{"day_range": [1]}'
+            Enabled: true
         InvocationLevel2:
           Type: Schedule
           Properties:
             Schedule: cron(0 2 * * ? *)
             Input: '{"day_range": []}'
+            Enabled: true
     Metadata:
       SamResourceId: CheckFunction
   AthenaReadOnlyUser:
