@@ -81,6 +81,10 @@ class LoneWorkerManager:
             'Prefer': 'outlook.timezone="Etc/GMT"'
         }
         self.calendar_url = f"https://graph.microsoft.com/v1.0/users/{self.username}/calendar/events"
+        # /calendarView expands recurring series server-side: each occurrence in the
+        # window comes back as its own event with an independently PATCH-able id.
+        # Used for GET; PATCH still targets /events/{id} via self.calendar_url.
+        self.calendar_view_url = f"https://graph.microsoft.com/v1.0/users/{self.username}/calendar/calendarView"
         self.mail_url = f"https://graph.microsoft.com/v1.0/users/{self.username}/sendMail"
         self.contacts_url = f"https://graph.microsoft.com/v1.0/users/{self.username}/contacts"
         self.users_url = f"https://graph.microsoft.com/v1.0/users"
@@ -175,37 +179,67 @@ class LoneWorkerManager:
         logger.info("Successful authentication")
         self.token = access_token
 
-    def get_calendar_events(self, filter):
+    def get_calendar_events(self, time_filters):
         """
-        Retrieves filtered calendar events from Microsoft Graph API.
+        Retrieves calendar events overlapping a wide window centred on now and
+        matching the supplied TimeFilter constraints.
 
         Args:
-            filter (str): Microsoft Graph API filter string for calendar events
+            time_filters (list[TimeFilter]): constraints on event start/end
+                relative to the current time. Applied client-side after the
+                Graph query.
 
         Returns:
-            list: Calendar events matching the specified filter
+            list: Calendar events satisfying every supplied TimeFilter.
 
         Raises:
             RuntimeError: If the calendar API request fails
 
         Note:
-            The filter should be formatted according to Microsoft Graph API's $filter syntax
+            Uses the /calendarView endpoint, which server-expands recurring
+            series: each occurrence in the queried window is returned as its
+            own event with an id that PATCHes only that occurrence. /events
+            would only return the series master at its original time, so most
+            occurrences would be invisible to the query.
+
+            The window is now ± ignore_after_min, which is wide enough to
+            cover every TimeFilter the lambdas construct today. The narrower
+            constraints are then applied client-side to preserve exact
+            behaviour.
         """
-        logger.info("Reading calendar events with filter: %s", filter)
+        ignore_after_min = self.get_app_cfg()["ignore_after_min"]
+        now = datetime.now(dt.timezone.utc)
+        window_start = now - timedelta(minutes=ignore_after_min)
+        window_end = now + timedelta(minutes=ignore_after_min)
+
         params = {
-            '$filter': filter
+            'startDateTime': window_start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            'endDateTime': window_end.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
+        logger.info("Reading calendarView from %s to %s",
+                    params['startDateTime'], params['endDateTime'])
 
-        response = requests.get(self.calendar_url, headers=self.headers, params=params)
+        appointments = []
+        url = self.calendar_view_url
+        request_params = params
+        while url is not None:
+            response = requests.get(url, headers=self.headers, params=request_params)
+            if response.status_code != 200:
+                logger.error('Calendar operation failed: %d, message: %s', response.status_code, response.text)
+                raise RuntimeError(f"Calendar operation failed: {response.status_code}, message: {response.text}")
 
-        if response.status_code != 200:
-            logger.error('Calendar operation failed: %d, message: %s', response.status_code, response.text)
-            raise RuntimeError(f"Calendar operation failed: {response.status_code}, message: {response.text}")
+            body = response.json()
+            appointments.extend(body.get('value', []))
+            # @odata.nextLink is a complete URL with all query state baked in,
+            # so subsequent pages must be fetched with no additional params.
+            url = body.get('@odata.nextLink')
+            request_params = None
 
-        # Get the appointments from the response
-        appointments = response.json()['value']
-        logger.info("Got %d appointments", len(appointments))
-        return appointments
+        logger.info("Got %d events from calendarView before client-side filtering", len(appointments))
+
+        matching = [a for a in appointments if event_matches_time_filters(a, time_filters, now)]
+        logger.info("Got %d appointments after time-filter", len(matching))
+        return matching
 
     def patch_calendar_event(self, event_id, changes):
         """
@@ -510,58 +544,49 @@ class TimeFilter:
         else:
             self.explicit = False
 
-def build_time_filter(time_filters):
+def parse_graph_datetime(datetime_string):
     """
-    Builds a Microsoft Graph API filter string from TimeFilter objects.
+    Parses a Microsoft Graph dateTime string and returns a UTC-aware datetime.
+
+    Graph returns dateTimes like ``2026-05-10T14:00:00.0000000`` (seven
+    fractional digits, more than ``datetime.fromisoformat`` accepts on Python
+    < 3.11), with no offset suffix when the ``Prefer: outlook.timezone`` header
+    requests Etc/GMT. The fractional component is dropped and the result is
+    tagged as UTC, matching the timezone we asked Graph for.
+    """
+    s = datetime_string.rstrip('Z').split('.')[0]
+    return datetime.fromisoformat(s).replace(tzinfo=dt.timezone.utc)
+
+def event_matches_time_filters(event, time_filters, now):
+    """
+    Returns True if the event satisfies every supplied TimeFilter.
 
     Args:
-        time_filters (list): List of TimeFilter objects defining time constraints
-
-    Returns:
-        str: Microsoft Graph API filter string combining all time filters with 'and' operators
+        event (dict): Calendar event from Graph, with start/end dateTime.
+        time_filters (list[TimeFilter]): constraints to apply.
+        now (datetime): reference time for relative (minutes-based) filters.
 
     Raises:
-        ValueError: If any TimeFilter has invalid before_or_after or start_or_end values
-
-    The function:
-    - Combines multiple time filters with 'and' operators
-    - Handles both relative (minutes-based) and absolute (datetime-based) filters
-    - Ensures all datetime strings are in UTC/GMT format
-    - Supports filtering on both start and end times of events
+        ValueError: if a TimeFilter has invalid before_or_after / start_or_end.
     """
-    logger.info("Number of clauses in time filter: %d", len(time_filters))
-    clauses = []
-    current_time = datetime.now(dt.timezone.utc)
-
     for time_filter in time_filters:
         if time_filter.before_or_after not in [BEFORE, AFTER]:
             raise ValueError(f"Time direction must be either '{BEFORE}' or '{AFTER}' - provided value '{time_filter.before_or_after}'")
         if time_filter.start_or_end not in [START, END]:
             raise ValueError(f"Start or end must be either '{START}' or '{END}' - provided value '{time_filter.start_or_end}'")
 
-        if time_filter.explicit:
-            logger.info("Building a filter on %s time, checking that it is %s an explicit time %s",
-                        time_filter.start_or_end, time_filter.before_or_after, time_filter.datetime)
-            # Truncate anything after the decimal point if present, then put a Z on the end.
-            datetime_string = time_filter.datetime.split('.')[0]
-        else:
-            logger.info("Building a filter on %s time, checking that it is %s a time %d minutes from now",
-                        time_filter.start_or_end, time_filter.before_or_after, time_filter.minutes)
+        event_dt = parse_graph_datetime(event[time_filter.start_or_end]['dateTime'])
 
-            # Calculate the modified datetime
-            target_datetime = current_time + timedelta(minutes=time_filter.minutes)
-            datetime_string = target_datetime.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
+        if time_filter.explicit:
+            target_dt = parse_graph_datetime(time_filter.datetime)
+        else:
+            target_dt = now + timedelta(minutes=time_filter.minutes)
 
         if time_filter.before_or_after == BEFORE:
-            # Check that appointment time is less than calculated time.
-            g_or_l = "le"
+            if event_dt > target_dt:
+                return False
         else:
-            # Check that appointment time is greater than calculated time.
-            g_or_l = "ge"
+            if event_dt < target_dt:
+                return False
 
-        # Note that we append a Z to indicate UTC.
-        clauses.append(f"{time_filter.start_or_end}/dateTime {g_or_l} '{datetime_string}Z'")
-
-    filter_str = " and ".join(clauses)
-    logger.info("Resulting filter: %s", filter_str)
-    return filter_str
+    return True

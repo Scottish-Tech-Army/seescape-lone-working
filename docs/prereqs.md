@@ -6,7 +6,7 @@ You must have done all the following before you start installation.
 
 2. [Set up an M365 mailbox with appropriate client configuration](#m365-account)
 
-3. [Created a configuration file](#config-file)
+3. [Created the configuration files](#config-files)
 
 All processes documented here are assumed to run using the linux command line, and depend on:
 
@@ -46,7 +46,7 @@ The outputs from this process will include:
 
 3. ClientID and ClientSecret for the app
 
-Store these off securely; you'll need all of them later.
+Store these off securely; you'll need all of them later. They map onto the Parameter Store entries listed in [Update secrets](creation.md#update-secrets).
 
 ### Tenant
 
@@ -177,7 +177,7 @@ Unfortunately, this grants the application rights to every mailbox in the enterp
 
 Once you have set up all of the M365 tenant information, it is very useful to test it all in isolation. Full instructions for how to validate your credentials are in [the test guide here](testing.md#validating-credentials).
 
-## Config file
+## Config files
 
 You need to create two configuration files for your deployment. Assuming your organisation is called `mycharity`, then you should probably create config files called `mycharity_env.yaml` and `mycharity.yaml`.
 

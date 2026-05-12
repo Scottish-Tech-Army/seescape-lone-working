@@ -270,6 +270,7 @@ Resources:
                                 [ ".", "Checkins", { "region": "${AWS::Region}" } ],
                                 [ ".", "Emergencies", { "region": "${AWS::Region}" } ],
                                 [ ".", "Checkouts", { "region": "${AWS::Region}" } ],
+                                [ ".", "MeetingsCompletedOK", { "region": "${AWS::Region}" } ],
                                 [ ".", "DuplicateCall", { "region": "${AWS::Region}" } ],
                                 [ ".", "Success", { "region": "${AWS::Region}" } ],
                                 [ ".", "UnknownCaller", { "region": "${AWS::Region}" } ]
@@ -338,9 +339,10 @@ Resources:
                         "type": "metric",
                         "properties": {
                             "metrics": [
-                                [ "${app}/Connect", "Emergencies", { "region": "${AWS::Region}", "label": "Emergency calls" } ],
+                                [ "${app}/Connect", "MeetingsCompletedOK", { "region": "${AWS::Region}", "label": "Meetings completed OK" } ],
                                 [ "${app}/Check", "CheckinsMissed", { "region": "${AWS::Region}", "label": "Checkins missed" } ],
                                 [ ".", "CheckoutsMissed", { "region": "${AWS::Region}", "label": "Checkouts missed" } ],
+                                [ "${app}/Connect", "Emergencies", { "region": "${AWS::Region}", "label": "Emergency calls" } ],
                                 [ "AWS/Lambda", "Lambda errors" ],
                                 [ ".", "Lambda throttles" ]
                             ],
@@ -348,7 +350,7 @@ Resources:
                             "view": "singleValue",
                             "region": "${AWS::Region}",
                             "stat": "Sum",
-                            "title": "Missed calls and emergencies",
+                            "title": "Meeting outcomes and incidents",
                             "setPeriodToTimeRange": true,
                             "liveData": true,
                             "trend": false
@@ -361,7 +363,7 @@ Resources:
                         "width": 6,
                         "height": 5,
                         "properties": {
-                            "markdown": "This dashboard shows the following.\n\n- Total number of missed calls, emergencies, errors and throttles in the time period covered.\n- Whether there were any alarms (serious errors) in the past 12 hours.\n- Graphs of rates of operations and metrics as counters per ${statsInterval} second period over the period covered.\n\n\nThe dashboard was last updated ${date}.\n"
+                            "markdown": "This dashboard shows the following.\n\n- Meeting outcomes (completed OK, missed checkins, missed checkouts), emergency calls, and lambda errors and throttles in the time period covered.\n- Whether there were any alarms (serious errors) in the past 12 hours.\n- Graphs of rates of operations and metrics as counters per ${statsInterval} second period over the period covered.\n\n\nThe dashboard was last updated ${date}.\n"
                         }
                     },
                     {
@@ -372,7 +374,7 @@ Resources:
                         "type": "metric",
                         "properties": {
                             "metrics": [
-                                [ "AWS/Lambda", "Invocations", "FunctionName", "ConnectFunction", "Resource", "ConnectFunction", { "region": "${AWS::Region}", "label": "Calls made" } ],
+                                [ "AWS/Lambda", "Invocations", "FunctionName", "ConnectFunction", { "region": "${AWS::Region}", "label": "Calls made" } ],
                                 [ "${app}/Connect", "Checkins", { "region": "${AWS::Region}" } ],
                                 [ "${app}/Connect", "Checkouts", { "region": "${AWS::Region}" } ],
                                 [ "${app}/Connect", "Success", { "region": "${AWS::Region}" } ]

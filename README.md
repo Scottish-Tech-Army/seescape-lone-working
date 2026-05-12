@@ -18,6 +18,18 @@ The implementation consists of three parts.
 
 This repository contains scripts and instructions for deploying, using and managing an implementation.
 
+The repository layout is as follows.
+
+- `docs/` — documentation.
+
+- `scripts/` — deployment and build scripts.
+
+- `config/` — per-deployment config files (see `config/example.yaml`).
+
+- `templates/` — CloudFormation / SAM templates.
+
+- `lambdas/` — AWS Lambda source.
+
 ## Detailed instructions
 
 There are documents covering the following.

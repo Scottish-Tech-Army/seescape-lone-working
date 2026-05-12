@@ -133,17 +133,17 @@ def get_calendar_items(manager):
     checkin_filters = []
     checkin_filters.append(utils.TimeFilter(minutes=-ignore_after_min, before_or_after=utils.AFTER, start_or_end=utils.START))
     checkin_filters.append(utils.TimeFilter(minutes=-grace_min, before_or_after=utils.BEFORE, start_or_end=utils.START))
-    checkin_filter_str = utils.build_time_filter(checkin_filters)
 
     # Checkout filter finds those that ended between 15 minutes ago, and 75 minutes ago - as above, but end time
     checkout_filters = []
     checkout_filters.append(utils.TimeFilter(minutes=-ignore_after_min, before_or_after=utils.AFTER, start_or_end=utils.END))
     checkout_filters.append(utils.TimeFilter(minutes=-grace_min, before_or_after=utils.BEFORE, start_or_end=utils.END))
-    checkout_filter_str = utils.build_time_filter(checkout_filters)
 
-    # Send the calendar request
-    checkin_appointments = manager.get_calendar_events(checkin_filter_str)
-    checkout_appointments = manager.get_calendar_events(checkout_filter_str)
+    # Send the calendar request. get_calendar_events queries /calendarView over a
+    # wide window and applies these TimeFilters client-side, so each occurrence
+    # of a recurring series is visible.
+    checkin_appointments = manager.get_calendar_events(checkin_filters)
+    checkout_appointments = manager.get_calendar_events(checkout_filters)
     logger.info("Returning %d checkin and %d checkout appointments", len(checkin_appointments), len(checkout_appointments))
     return checkin_appointments, checkout_appointments
 

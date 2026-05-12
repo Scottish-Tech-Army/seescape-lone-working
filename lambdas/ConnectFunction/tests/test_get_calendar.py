@@ -17,11 +17,6 @@ import connect
 import loneworker_utils as utils
 
 @pytest.fixture
-def mock_build_time_filter(mocker):
-    """Mock the build_time_filter function in loneworker_utils"""
-    return mocker.patch('loneworker_utils.build_time_filter', return_value=[])
-
-@pytest.fixture
 def dummy_manager():
     manager = MagicMock()
     manager.get_calendar_events = MagicMock(return_value=[])
@@ -31,6 +26,13 @@ def dummy_manager():
         "ignore_after_min": 75
     })
     return manager
+
+
+def _time_filters_passed_to(manager):
+    """Return the list of TimeFilter objects passed to the most recent get_calendar_events call."""
+    manager.get_calendar_events.assert_called_once()
+    call = manager.get_calendar_events.mock_calls[0]
+    return call.args[0]
 
 def make_appointment(appointment_id="1", subject="Test Appointment", attendee_mails=[], start_time="2024-01-01T10:00:00", end_time="2024-01-01T11:00:00"):
     attendees = []
@@ -46,15 +48,11 @@ def make_appointment(appointment_id="1", subject="Test Appointment", attendee_ma
         "end": {"dateTime": end_time, "timeZone": "Etc/GMT"}
     }
 
-def test_get_calendar_checkin_filters(dummy_manager, mock_build_time_filter):
+def test_get_calendar_checkin_filters(dummy_manager):
     """Test that check-in action creates correct time filters"""
     connect.get_calendar(dummy_manager, connect.KEY_CHECK_IN, ["test@example.com"])
 
-    # Verify the filter was built with correct parameters
-    dummy_manager.get_calendar_events.assert_called_once()
-    filter_calls = mock_build_time_filter.mock_calls
-    assert len(filter_calls) == 1
-    time_filters = filter_calls[0].args[0]
+    time_filters = _time_filters_passed_to(dummy_manager)
 
     # Should have two time filters for check-in
     assert len(time_filters) == 2
@@ -67,13 +65,11 @@ def test_get_calendar_checkin_filters(dummy_manager, mock_build_time_filter):
     assert time_filters[1].before_or_after == utils.BEFORE
     assert time_filters[1].start_or_end == utils.START
 
-def test_get_calendar_checkout_filters(dummy_manager, mock_build_time_filter):
+def test_get_calendar_checkout_filters(dummy_manager):
     """Test that check-out action creates correct time filters"""
     connect.get_calendar(dummy_manager, connect.KEY_CHECK_OUT, ["test@example.com"])
 
-    filter_calls = mock_build_time_filter.mock_calls
-    assert len(filter_calls) == 1
-    time_filters = filter_calls[0].args[0]
+    time_filters = _time_filters_passed_to(dummy_manager)
 
     # Should have two time filters for check-out
     assert len(time_filters) == 2
@@ -86,13 +82,11 @@ def test_get_calendar_checkout_filters(dummy_manager, mock_build_time_filter):
     assert time_filters[1].before_or_after == utils.BEFORE
     assert time_filters[1].start_or_end == utils.END
 
-def test_get_calendar_emergency_filters(dummy_manager, mock_build_time_filter):
+def test_get_calendar_emergency_filters(dummy_manager):
     """Test that emergency action creates correct time filters"""
     connect.get_calendar(dummy_manager, connect.KEY_EMERGENCY, ["test@example.com"])
 
-    filter_calls = mock_build_time_filter.mock_calls
-    assert len(filter_calls) == 1
-    time_filters = filter_calls[0].args[0]
+    time_filters = _time_filters_passed_to(dummy_manager)
 
     # Should have two time filters for emergency
     assert len(time_filters) == 2
@@ -105,13 +99,12 @@ def test_get_calendar_emergency_filters(dummy_manager, mock_build_time_filter):
     assert time_filters[1].before_or_after == utils.AFTER
     assert time_filters[1].start_or_end == utils.END
 
-def test_get_calendar_end_before_filter(dummy_manager, mock_build_time_filter):
+def test_get_calendar_end_before_filter(dummy_manager):
     """Test that end_before parameter adds correct filter"""
     end_before = "2024-01-01T12:00:00"
     connect.get_calendar(dummy_manager, connect.KEY_CHECK_IN, ["test@example.com"], end_before=end_before)
 
-    filter_calls = mock_build_time_filter.mock_calls
-    time_filters = filter_calls[0].args[0]
+    time_filters = _time_filters_passed_to(dummy_manager)
 
     # Should have three filters (2 for check-in + 1 for end_before)
     assert len(time_filters) == 3
