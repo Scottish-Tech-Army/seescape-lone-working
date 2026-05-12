@@ -1,8 +1,16 @@
 # Initial installation
 
-This document specifies how to perform initial installation. It assumes that you have set up all the [prerequisites requirements](prereqs.md). You should work through all sections of this document installing the various components in turn.
+This document specifies how to perform initial installation, in four stages.
 
-*All scripts should report success and return a successful return code, or your deployment has failed.*
+1. [Deploy AWS resources](#run-scripts-to-deploy-resources).
+
+2. [Populate secrets in Parameter Store](#update-secrets).
+
+3. [Configure Amazon Connect and assign a phone number](#configure-amazon-connect).
+
+4. Optionally [enable metrics export](#enable-metrics-export).
+
+It assumes that you have completed the [prerequisites](prereqs.md), and that each script in this document reports success and returns zero; if any does not, the deployment has failed and you should stop and diagnose before continuing.
 
 ## Run scripts to deploy resources
 
@@ -28,7 +36,7 @@ This step deploys the main resources you will be using.
     bash scripts/initial.sh
     ~~~
 
-- Build and push the code. *This reports that it is ignoring some lambdas that do not exist yet - this is benign.*
+- Build and push the code.
 
     ~~~bash
     bash scripts/code_build.sh notest
@@ -41,6 +49,8 @@ This step deploys the main resources you will be using.
     bash scripts/lambdas.sh
     ~~~
 
+- Subscribe at least one email address to the alert SNS topic so that errors are noticed. Follow the [alert configuration instructions](operations.md#alert-configuration).
+
 ## Update secrets
 
 *This process could be automated but is not for security reasons; we do not want passwords or IDs in config files.*
@@ -51,14 +61,15 @@ Update the secrets to have the correct values as follows.
 
 - Find the "AWS Systems Manager/Parameter Store" - this can be found by entering `Parameter Store` in the search box.
 
-- For each of the four parameters, enter the correct value (all of which you should have noted down during the prerequisites stage).
+- For each of the five parameters, enter the correct value (all of which you should have noted down during the prerequisites stage).
 
     - `/${APP}/tenant`: Tenant ID, the GUID for your organisation
     - `/${APP}/clientid`: Client ID for the M365 application, a GUID
-    - `/${APP}/clientsecret`: Client secret for the M365 application
+    - `/${APP}/clientsecret`: Client secret for the M365 application — the **secret value**, not the secret ID. (Sigh.)
+    - `/${APP}/clientsecretexpiry`: The expiry date of the client secret as ISO 8601 (`YYYY-MM-DD`), as shown in Entra. Stored as a plain `String` (the date is not sensitive). Until this is set to a real date, the `Client Secret Expiry Invalid` alarm will fire.
     - `/${APP}/emailuser`: Email address of the shared mailbox
 
-    *Note that client secrets normally expire; you may need to come back and update it in a few months.*
+    *Client secrets expire periodically. When that approaches, you will receive an alert email; follow the [client secret rotation procedure](operations.md#client-secret-rotation) to refresh both `clientsecret` and `clientsecretexpiry`.*
 
 ## Configure Amazon Connect
 

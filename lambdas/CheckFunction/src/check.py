@@ -1,14 +1,56 @@
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import loneworker_utils as utils
 
 METRIC_MEETINGS_CHECKED = "MeetingsChecked"
 METRIC_CHECKINS_MISSED = "CheckinsMissed"
 METRIC_CHECKOUTS_MISSED = "CheckoutsMissed"
+METRIC_CLIENT_SECRET_DAYS_TO_EXPIRY = "ClientSecretDaysToExpiry"
 
-ALL_METRICS = [METRIC_MEETINGS_CHECKED, METRIC_CHECKINS_MISSED, METRIC_CHECKOUTS_MISSED]
+ALL_METRICS = [METRIC_MEETINGS_CHECKED, METRIC_CHECKINS_MISSED, METRIC_CHECKOUTS_MISSED,
+               METRIC_CLIENT_SECRET_DAYS_TO_EXPIRY]
+
+# Sentinel days-to-expiry value reported when the SSM parameter is missing or
+# unparseable. Chosen to breach the > 366 alarm threshold without overflowing
+# any sensible chart range.
+INVALID_DAYS_TO_EXPIRY = 1000
 
 logger = utils.get_logger()
+
+
+def days_to_expiry(expiry_str, today=None):
+    """
+    Compute the integer number of days from `today` until the client secret
+    expires, given the value held in the `clientsecretexpiry` SSM parameter.
+
+    Args:
+        expiry_str: ISO 8601 date string (YYYY-MM-DD), or None.
+        today: Optional date for testing; defaults to today's UTC date.
+
+    Returns:
+        int: Days until expiry, never negative. Returns 0 if the secret has
+        already expired (CloudWatch's `Count` unit drops negative values, and
+        once the secret is past its expiry the < 7 alarm is already firing
+        and Microsoft Graph calls will start failing — surfacing the issue
+        through the CheckFunctionErrorAlarm). Returns INVALID_DAYS_TO_EXPIRY
+        (1000) if the input is missing, not a string, or not a valid ISO date,
+        which triggers the ClientSecretExpiryInvalidAlarm.
+    """
+    if today is None:
+        today = datetime.utcnow().date()
+
+    if not isinstance(expiry_str, str):
+        logger.warning("Client secret expiry parameter is missing or not a string; reporting %d", INVALID_DAYS_TO_EXPIRY)
+        return INVALID_DAYS_TO_EXPIRY
+
+    try:
+        expiry = date.fromisoformat(expiry_str.strip())
+    except ValueError:
+        logger.warning("Client secret expiry %r is not a valid ISO 8601 date; reporting %d",
+                       expiry_str, INVALID_DAYS_TO_EXPIRY)
+        return INVALID_DAYS_TO_EXPIRY
+
+    return max(0, (expiry - today).days)
 
 def send_warning_mail(manager, checkin, appointment):
     """
@@ -91,17 +133,17 @@ def get_calendar_items(manager):
     checkin_filters = []
     checkin_filters.append(utils.TimeFilter(minutes=-ignore_after_min, before_or_after=utils.AFTER, start_or_end=utils.START))
     checkin_filters.append(utils.TimeFilter(minutes=-grace_min, before_or_after=utils.BEFORE, start_or_end=utils.START))
-    checkin_filter_str = utils.build_time_filter(checkin_filters)
 
     # Checkout filter finds those that ended between 15 minutes ago, and 75 minutes ago - as above, but end time
     checkout_filters = []
     checkout_filters.append(utils.TimeFilter(minutes=-ignore_after_min, before_or_after=utils.AFTER, start_or_end=utils.END))
     checkout_filters.append(utils.TimeFilter(minutes=-grace_min, before_or_after=utils.BEFORE, start_or_end=utils.END))
-    checkout_filter_str = utils.build_time_filter(checkout_filters)
 
-    # Send the calendar request
-    checkin_appointments = manager.get_calendar_events(checkin_filter_str)
-    checkout_appointments = manager.get_calendar_events(checkout_filter_str)
+    # Send the calendar request. get_calendar_events queries /calendarView over a
+    # wide window and applies these TimeFilters client-side, so each occurrence
+    # of a recurring series is visible.
+    checkin_appointments = manager.get_calendar_events(checkin_filters)
+    checkout_appointments = manager.get_calendar_events(checkout_filters)
     logger.info("Returning %d checkin and %d checkout appointments", len(checkin_appointments), len(checkout_appointments))
     return checkin_appointments, checkout_appointments
 
@@ -212,6 +254,13 @@ def lambda_handler(event, context):
     process_appointments(manager, checkin_appointments, checkin=True)
     process_appointments(manager, checkout_appointments, checkin=False)
 
+    # Emit the client secret days-to-expiry gauge. increment_counter on a
+    # zero-baseline metric is equivalent to "set" because metrics_to_emit is
+    # cleared on every run.
+    days = days_to_expiry(manager.client_secret_expiry)
+    logger.info("Client secret days to expiry: %d", days)
+    manager.increment_counter(METRIC_CLIENT_SECRET_DAYS_TO_EXPIRY, days)
+
     # Report back metrics
     manager.emit_metrics()
 
@@ -226,6 +275,7 @@ def lambda_handler(event, context):
     resultMap["metrics"]["Meetings checked"] = metrics[METRIC_MEETINGS_CHECKED]
     resultMap["metrics"]["Missed checkins reported"] = metrics[METRIC_CHECKINS_MISSED]
     resultMap["metrics"]["Missed checkouts reported"] = metrics[METRIC_CHECKOUTS_MISSED]
+    resultMap["metrics"]["Client secret days to expiry"] = metrics[METRIC_CLIENT_SECRET_DAYS_TO_EXPIRY]
 
     logger.info("Returning structure: %s", resultMap)
 

@@ -20,11 +20,17 @@ Parameters:
     Type: Number
     Default: 900
 Resources:
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName:
+        Fn::Sub: "${app}-alerts"
+      DisplayName: Lone worker alerts
   ConnectFunctionErrorAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: Connect Function Errors
-      AlarmDescription: "Triggers if the ConnectFunction Lambda function has errors."
+      AlarmDescription: "The ConnectFunction Lambda function has errored."
       Namespace: AWS/Lambda
       MetricName: Errors
       Dimensions:
@@ -37,11 +43,13 @@ Resources:
       Threshold: 0
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
+      AlarmActions:
+        - Ref: AlarmTopic
   ConnectFunctionThrottleAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: Connect Function Throttles
-      AlarmDescription: "Triggers if the ConnectFunction Lambda function throttles."
+      AlarmDescription: "The ConnectFunction Lambda function has throttled."
       Namespace: AWS/Lambda
       MetricName: Throttles
       Dimensions:
@@ -54,11 +62,13 @@ Resources:
       Threshold: 0
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
+      AlarmActions:
+        - Ref: AlarmTopic
   CheckFunctionErrorAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: Check Function Errors
-      AlarmDescription: "Triggers if the CheckFunction Lambda function has errors."
+      AlarmDescription: "The CheckFunction Lambda function has errored."
       Namespace: AWS/Lambda
       MetricName: Errors
       Dimensions:
@@ -71,11 +81,13 @@ Resources:
       Threshold: 0
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
+      AlarmActions:
+        - Ref: AlarmTopic
   CheckFunctionThrottleAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: Check Function Throttles
-      AlarmDescription: "Triggers if the CheckFunction Lambda function throttles."
+      AlarmDescription: "The CheckFunction Lambda function has throttled."
       Namespace: AWS/Lambda
       MetricName: Throttles
       Dimensions:
@@ -88,11 +100,13 @@ Resources:
       Threshold: 0
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
+      AlarmActions:
+        - Ref: AlarmTopic
   MissedCheckoutsAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: Missed Checkouts
-      AlarmDescription: "Triggers if checkouts have been missed."
+      AlarmDescription: "A checkout has been missed."
       Namespace:
         Fn::Sub: "${app}/Check"
       MetricName: CheckoutsMissed
@@ -107,7 +121,7 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: Missed Checkins
-      AlarmDescription: "Triggers if checkins have been missed."
+      AlarmDescription: "A checkin has been missed."
       Namespace:
         Fn::Sub: "${app}/Check"
       MetricName: CheckinsMissed
@@ -122,7 +136,7 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: Emergency Calls
-      AlarmDescription: "Triggers if emergency calls have occurred."
+      AlarmDescription: "An emergency call has occurred."
       Namespace:
         Fn::Sub: "${app}/Connect"
       MetricName: Emergencies
@@ -133,6 +147,57 @@ Resources:
       Threshold: 0
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
+  ClientSecretExpiringMonthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: Client Secret Expiring Within Month
+      AlarmDescription: "The M365 client secret will expire within 30 days. Time to plan a rotation."
+      Namespace:
+        Fn::Sub: "${app}/Check"
+      MetricName: ClientSecretDaysToExpiry
+      Statistic: Maximum  # Gauge value; one datapoint per CheckFunction run
+      Period: 900
+      EvaluationPeriods: 1  # Single period — clears within ~25 minutes once the metric is good
+      DatapointsToAlarm: 1
+      Threshold: 30
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - Ref: AlarmTopic
+  ClientSecretExpiringWeekAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: Client Secret Expiring Within Week
+      AlarmDescription: "The M365 client secret will expire within 7 days, or has already expired. Rotate now."
+      Namespace:
+        Fn::Sub: "${app}/Check"
+      MetricName: ClientSecretDaysToExpiry
+      Statistic: Maximum
+      Period: 900
+      EvaluationPeriods: 1  # Single period — clears within ~25 minutes once the metric is good
+      DatapointsToAlarm: 1
+      Threshold: 7
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - Ref: AlarmTopic
+  ClientSecretExpiryInvalidAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: Client Secret Expiry Invalid
+      AlarmDescription: "The M365 client secret expiry parameter is missing, unparseable, or set more than a year ahead. Set clientsecretexpiry to a real ISO 8601 date."
+      Namespace:
+        Fn::Sub: "${app}/Check"
+      MetricName: ClientSecretDaysToExpiry
+      Statistic: Maximum
+      Period: 900
+      EvaluationPeriods: 1  # Single period — clears within ~25 minutes once the metric is good
+      DatapointsToAlarm: 1
+      Threshold: 366
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - Ref: AlarmTopic
   LoneworkerDashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
@@ -205,6 +270,7 @@ Resources:
                                 [ ".", "Checkins", { "region": "${AWS::Region}" } ],
                                 [ ".", "Emergencies", { "region": "${AWS::Region}" } ],
                                 [ ".", "Checkouts", { "region": "${AWS::Region}" } ],
+                                [ ".", "MeetingsCompletedOK", { "region": "${AWS::Region}" } ],
                                 [ ".", "DuplicateCall", { "region": "${AWS::Region}" } ],
                                 [ ".", "Success", { "region": "${AWS::Region}" } ],
                                 [ ".", "UnknownCaller", { "region": "${AWS::Region}" } ]
@@ -244,13 +310,13 @@ Resources:
                         }
                     },
                     {
-                        "height": 5,
+                        "height": 6,
                         "width": 6,
                         "y": 6,
                         "x": 12,
                         "type": "alarm",
                         "properties": {
-                            "title": "Alarms in past 12 hours",
+                            "title": "Current alarm state",
                             "alarms": [
                                 "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${MissedCheckinsAlarm}",
                                 "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${MissedCheckoutsAlarm}",
@@ -258,7 +324,10 @@ Resources:
                                 "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${ConnectFunctionErrorAlarm}",
                                 "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${ConnectFunctionThrottleAlarm}",
                                 "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${CheckFunctionErrorAlarm}",
-                                "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${CheckFunctionThrottleAlarm}"
+                                "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${CheckFunctionThrottleAlarm}",
+                                "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${ClientSecretExpiringMonthAlarm}",
+                                "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${ClientSecretExpiringWeekAlarm}",
+                                "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${ClientSecretExpiryInvalidAlarm}"
                             ]
                         }
                     },
@@ -270,9 +339,10 @@ Resources:
                         "type": "metric",
                         "properties": {
                             "metrics": [
-                                [ "${app}/Connect", "Emergencies", { "region": "${AWS::Region}", "label": "Emergency calls" } ],
+                                [ "${app}/Connect", "MeetingsCompletedOK", { "region": "${AWS::Region}", "label": "Meetings completed OK" } ],
                                 [ "${app}/Check", "CheckinsMissed", { "region": "${AWS::Region}", "label": "Checkins missed" } ],
                                 [ ".", "CheckoutsMissed", { "region": "${AWS::Region}", "label": "Checkouts missed" } ],
+                                [ "${app}/Connect", "Emergencies", { "region": "${AWS::Region}", "label": "Emergency calls" } ],
                                 [ "AWS/Lambda", "Lambda errors" ],
                                 [ ".", "Lambda throttles" ]
                             ],
@@ -280,7 +350,7 @@ Resources:
                             "view": "singleValue",
                             "region": "${AWS::Region}",
                             "stat": "Sum",
-                            "title": "Missed calls and emergencies",
+                            "title": "Meeting outcomes and incidents",
                             "setPeriodToTimeRange": true,
                             "liveData": true,
                             "trend": false
@@ -289,11 +359,11 @@ Resources:
                     {
                         "type": "text",
                         "x": 12,
-                        "y": 11,
+                        "y": 12,
                         "width": 6,
                         "height": 5,
                         "properties": {
-                            "markdown": "This dashboard shows the following.\n\n- Total number of missed calls, emergencies, errors and throttles in the time period covered.\n- Whether there were any alarms (serious errors) in the past 12 hours.\n- Graphs of rates of operations and metrics as counters per ${statsInterval} second period over the period covered.\n\n\nThe dashboard was last updated ${date}.\n"
+                            "markdown": "This dashboard shows the following.\n\n- Meeting outcomes (completed OK, missed checkins, missed checkouts), emergency calls, and lambda errors and throttles in the time period covered.\n- Whether there were any alarms (serious errors) in the past 12 hours.\n- Graphs of rates of operations and metrics as counters per ${statsInterval} second period over the period covered.\n\n\nThe dashboard was last updated ${date}.\n"
                         }
                     },
                     {
@@ -304,7 +374,7 @@ Resources:
                         "type": "metric",
                         "properties": {
                             "metrics": [
-                                [ "AWS/Lambda", "Invocations", "FunctionName", "ConnectFunction", "Resource", "ConnectFunction", { "region": "${AWS::Region}", "label": "Calls made" } ],
+                                [ "AWS/Lambda", "Invocations", "FunctionName", "ConnectFunction", { "region": "${AWS::Region}", "label": "Calls made" } ],
                                 [ "${app}/Connect", "Checkins", { "region": "${AWS::Region}" } ],
                                 [ "${app}/Connect", "Checkouts", { "region": "${AWS::Region}" } ],
                                 [ "${app}/Connect", "Success", { "region": "${AWS::Region}" } ]
@@ -315,6 +385,27 @@ Resources:
                             "stat": "Sum",
                             "title": "Routine operations",
                             "setPeriodToTimeRange": true,
+                            "liveData": true,
+                            "trend": false
+                        }
+                    },
+                    {
+                        "height": 3,
+                        "width": 4,
+                        "y": 3,
+                        "x": 14,
+                        "type": "metric",
+                        "properties": {
+                            "metrics": [
+                                [ "${app}/Check", "ClientSecretDaysToExpiry", { "region": "${AWS::Region}", "label": "Days until expiry" } ]
+                            ],
+                            "sparkline": false,
+                            "view": "singleValue",
+                            "region": "${AWS::Region}",
+                            "stat": "Maximum",
+                            "title": "Client secret expiry",
+                            "period": 900,
+                            "setPeriodToTimeRange": false,
                             "liveData": true,
                             "trend": false
                         }

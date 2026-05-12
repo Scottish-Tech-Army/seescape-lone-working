@@ -1,6 +1,14 @@
 # Testing
 
-This document describes testing that can be done.
+This document describes testing that can be done. It covers the following.
+
+1. [Unit tests](#unit-tests).
+
+2. [Validating M365 credentials](#validating-credentials) in isolation.
+
+3. [Per-Lambda validation](#validating-the-lambda-functions) in the AWS console.
+
+4. [The end-to-end test plan](#end-to-end-test-plan), including a dedicated subsection for [recurring meetings](#recurring-meetings).
 
 ## Unit tests
 
@@ -111,7 +119,7 @@ This checks that the lambda functions are doing what they should be doing, witho
 
 *End to end testing assumes that you exist with the correct mobile phone number in the M365 client, [as documented in the user instructions](user.md#configuring-user-accounts), and also that you have access to the shared mailbox to check what is happening.*
 
-A good set of end to end tests to try is the following.
+To get a good level of end to end testing, follow the test cases below. Unless otherwise stated, use the lone worker shared mailbox to create meetings.
 
 ### Tyre kicking
 
@@ -125,25 +133,25 @@ A good set of end to end tests to try is the following.
 
 ### Mainline
 
-- Create two meetings starting around now, one with your number and one with another.
+- Create two meetings starting around now, one with your number and one with another (as invited members).
 
     - Dial into the meeting to check in. The meeting should acquire a `Checked-In` category.
 
-    - Dial in to check in again (you should get an "already checked in" message)
+    - Dial in to check in again. You should get an "already checked in" message.
 
-    - Try to check out - it work, even though the meeting has only just started. The meeting should acquire a `Checked-Out` category.
+    - Try to check out - it should work, even though the meeting has only just started. The meeting should acquire a `Checked-Out` category.
 
-    - Dial in and check out. This should explain that the meeting is already checked out.
+    - Dial in and check out again. You should get an "already checked out" message.
 
-    - Remove the checkin and checkout categories, then try to checkout again - it should fail as you have not checked in.
+    - Remove the checkin and checkout categories, then try to checkout again. You should get an error saying you have not checked in.
 
 - Set up two back to back meetings with the changeover being the current time. Mark the first as `Checked-In` (not `Checked-Out`) and then check into the second.
 
     - You should see that the older meeting gets a `Checked-Out` as well as the newer one getting a `Checked-In`
 
-    - Try to check in again, and make sure that you get an "already checked out" message.
+    - Try to check in again, and make sure that you get an "already checked in" message.
 
-    - Make sure you can check out of the second meeting immediately.
+    - Call in to check out. This should succeed.
 
 - Set up two back to back meetings with the changeover being the current time. Mark the first as `Checked-In` (not `Checked-Out`).
 
@@ -172,3 +180,101 @@ A good set of end to end tests to try is the following.
     - The meeting acquires a `Missed-Check-Out` category
 
     - An email is sent about it.
+
+### Recurring meetings
+
+These tests check that recurring meetings are handled correctly: each occurrence in a series should be treated as its own appointment, and any category or body change should affect only that occurrence — not the series master, and not sibling occurrences.
+
+The prerequisites for these tests are the same as the end-to-end plan above (real mobile registered, shared-mailbox access). Several tests also require you to invoke `CheckFunction` manually from the AWS Lambda console — see [Validating the lambda functions](#validating-the-lambda-functions) above for how.
+
+For setup, "daily recurring meeting" means a series whose recurrence pattern is daily. A daily cadence is convenient for testing because today's and tomorrow's occurrences are easy to inspect side-by-side; the same behaviour applies to weekly or monthly cadences.
+
+After every step that mutates a meeting, inspect both the **series master** (the original recurring event) and at least one **sibling occurrence** (e.g. tomorrow's) in Outlook to confirm they are unmodified, in addition to checking the targeted occurrence.
+
+#### Check-in and check-out on a current occurrence
+
+- Create a daily recurring meeting that started yesterday at the current time of day (so today's occurrence is starting around now), runs for an hour, and recurs daily for at least three more days. Add your phone number's email address as the only attendee.
+
+    - Dial in to check in (`1` option). The call should succeed.
+
+    - Confirm that **today's occurrence only** has the `Checked-In` category. The series master and tomorrow's occurrence should be unmodified.
+
+    - Dial in to check in again — you should get an "already checked in" message.
+
+    - Dial in to check out (`2` option). The call should succeed.
+
+    - Confirm that today's occurrence now has both `Checked-In` and `Checked-Out`, and that the series master and tomorrow's occurrence are still unmodified.
+
+    - Dial in to check in again — you should get an "already checked out" message.
+
+    - Dial in to check out again — you should get an "already checked out" message.
+
+#### Missed check-in on a recurring occurrence
+
+- Create a daily recurring meeting that started yesterday at a time of day that is now between 15 and 75 minutes ago (so today's occurrence falls in the missed-check-in window). Include your phone number's email as the only attendee. Do not check in.
+
+    - Wait for the next `CheckFunction` run, or kick it manually.
+
+    - Today's occurrence should acquire a `Missed-Check-In` category. The series master and tomorrow's occurrence should not.
+
+    - A mail should be sent.
+
+    - Kick `CheckFunction` again; you should not get another mail.
+
+#### Missed check-out on a recurring occurrence
+
+Note: Outlook's GUI only lets you edit categories on the entire series, not on a single occurrence, so the setup uses the tooling itself to put `Checked-In` on a single occurrence and then drags the occurrence in Outlook (which is per-occurrence) to push the end time into the missed-checkout window.
+
+- Create a fresh daily recurring meeting whose current occurrence's start time is now (so it falls in the check-in window). Include your phone number's email as the only attendee.
+
+    - Dial in to check in. Today's occurrence acquires `Checked-In`. The series master and tomorrow's occurrence should be unmodified.
+
+    - In Outlook, drag *just today's occurrence* so it now starts about an hour ago and ends about 30 minutes ago (firmly inside the missed-checkout window of 15–75 minutes after the end time).
+
+    - Wait for `CheckFunction` to run, or kick it manually.
+
+    - Today's occurrence should acquire a `Missed-Check-Out` category. The series master and tomorrow's occurrence should not.
+
+    - A mail should be sent.
+
+#### Emergency on a recurring occurrence
+
+- Create a daily recurring meeting whose current occurrence is in progress now. Include your phone number's email as the only attendee.
+
+    - Dial in and select `3` (emergency).
+
+    - An emergency mail should be sent.
+
+    - Today's occurrence should acquire an `Emergency` category. The series master and tomorrow's occurrence should not.
+
+#### Rescheduled occurrence
+
+- Create a daily recurring meeting whose master time of day is one hour ago, so today's occurrence as originally scheduled is now outside the check-in window. In Outlook, drag today's occurrence so it now starts around the current time. Include your phone number's email as attendee.
+
+    - Dial in to check in. The call should succeed and the rescheduled occurrence should acquire `Checked-In`. The series master and the other occurrences should be unmodified.
+
+#### Cancelled occurrence
+
+- Create a daily recurring meeting whose master time of day is the current time of day. In Outlook, cancel just today's occurrence (delete it from the series — do not delete the whole series). Include your phone number's email as attendee.
+
+    - Dial in to check in. You should get a "no matching appointment" message — the cancelled occurrence must not be matched, and the tooling must not fall back to matching the series master.
+
+#### Mixed: recurring series alongside a one-off meeting
+
+- With a daily recurring series in progress now (as set up in the first test above), additionally create a single-instance meeting at the same time with a different attendee (someone else's email).
+
+    - Dial in to check in. The recurring series's current occurrence should be checked in; the single-instance meeting must remain unmodified.
+
+#### Edit-series footgun
+
+This documents an Outlook-side behaviour that the tooling cannot prevent: editing a recurring series's *non-category* properties (time, subject, attendees, …) silently wipes per-occurrence categories that the tooling has set, leaving no record that a check-in or check-out had happened. This test pins the behaviour so future regressions are caught.
+
+*Background: the underlying Graph/Outlook semantics are asymmetric — a series-level category edit respects per-occurrence exceptions, while a series-level edit of any other property does not. The user-facing summary is simply that editing a recurring series can clobber tooling-set state on its occurrences.*
+
+- Reuse the daily recurring meeting from the first test in this section, after both check-in and check-out have run (so today's occurrence carries `Checked-In` and `Checked-Out`).
+
+    - In Outlook, edit the series — change something other than categories (e.g. the subject, or the time of day) and save with "all events in the series".
+
+    - Re-inspect today's occurrence: the `Checked-In` and `Checked-Out` categories should have been wiped. This is expected Outlook behaviour, not a tooling bug.
+
+    - Confirm that the tooling itself was not involved (no Connect/Check Lambda invocation in CloudWatch around the edit time). The category change came purely from Outlook's series-edit semantics.

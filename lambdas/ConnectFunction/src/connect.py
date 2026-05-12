@@ -15,6 +15,7 @@ METRIC_UNKNOWN_CALLER = "UnknownCaller"
 METRIC_APPT_NOT_FOUND = "NoMatchingAppointment"
 METRIC_DUPLICATE_CALL = "DuplicateCall"
 METRIC_SUCCESS = "Success"
+METRIC_MEETINGS_COMPLETED_OK = "MeetingsCompletedOK"
 
 ALL_METRICS = [
     METRIC_CHECKINS,
@@ -24,6 +25,7 @@ ALL_METRICS = [
     METRIC_APPT_NOT_FOUND,
     METRIC_DUPLICATE_CALL,
     METRIC_SUCCESS,
+    METRIC_MEETINGS_COMPLETED_OK,
 ]
 
 logger = utils.get_logger()
@@ -69,7 +71,7 @@ def get_calendar(manager, action, addresses, end_before=None):
         """
         Look for a meeting due to:
         - start before 75 (ignore_after_min) minutes in the future
-          (so the user could plausibly have got to this meeting)
+          (so the user could plausibly have gto this meeting)
         - end after 75 (ignore_after_min) minutes in the past
           (so that the user might still be there)
 
@@ -90,15 +92,18 @@ def get_calendar(manager, action, addresses, end_before=None):
         logger.info("Explicit end before of %s", end_before)
         time_filters.append(utils.TimeFilter(datetime=end_before, before_or_after=utils.BEFORE, start_or_end=utils.END))
 
-    filter = utils.build_time_filter(time_filters)
-
-    # Retrieve the appointments
-    appointments = manager.get_calendar_events(filter)
+    # Retrieve the appointments. get_calendar_events queries /calendarView over
+    # a wide window (so individual occurrences of recurring series are visible)
+    # and applies these TimeFilters client-side to narrow to the scenario window.
+    appointments = manager.get_calendar_events(time_filters)
 
     # TODO: I think it would be better if we moved the checking in process_appointments here; it would just be simpler
     # Filter out by address
     matching_appointments = []
     for appointment in appointments:
+        logger.info("Checking appointment %s attendees: %s",
+                    appointment['subject'],
+                    [a['emailAddress']['address'] for a in appointment['attendees']])
         for attendee in appointment['attendees']:
             address = attendee['emailAddress']['address'].lower()
 
@@ -300,6 +305,8 @@ def process_appointments(manager, addresses, action):
                 manager.increment_counter(METRIC_DUPLICATE_CALL)
             else:
                 message = "Emergency already registered."
+        elif action == KEY_CHECK_OUT:
+            manager.increment_counter(METRIC_MEETINGS_COMPLETED_OK)
 
     # If we got here, we consider it a success
     logger.info("Success!")
@@ -345,6 +352,7 @@ def process_appointments(manager, addresses, action):
             # We update the message - terminating the sentence and adding the second batch
             logger.info("Found a missed checkout")
             message += " An earlier appointment has also been checked out."
+            manager.increment_counter(METRIC_MEETINGS_COMPLETED_OK)
 
     return success, message
 

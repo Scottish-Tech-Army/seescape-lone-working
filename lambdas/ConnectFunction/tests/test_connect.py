@@ -13,12 +13,8 @@ dummy_boto3 = types.ModuleType("boto3")
 sys.modules["boto3"] = dummy_boto3
 
 import connect
-import connect
 import loneworker_utils as utils  # noqa: F401
 
-@pytest.fixture(autouse=True)
-def patch_build_time_filter(monkeypatch):
-    monkeypatch.setattr(utils, "build_time_filter", lambda time_filters: "dummy-filter")
 @pytest.fixture
 def dummy_manager():
     manager = MagicMock()

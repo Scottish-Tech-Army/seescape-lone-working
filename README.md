@@ -18,6 +18,18 @@ The implementation consists of three parts.
 
 This repository contains scripts and instructions for deploying, using and managing an implementation.
 
+The repository layout is as follows.
+
+- `docs/` — documentation.
+
+- `scripts/` — deployment and build scripts.
+
+- `config/` — per-deployment config files (see `config/example.yaml`).
+
+- `templates/` — CloudFormation / SAM templates.
+
+- `lambdas/` — AWS Lambda source.
+
 ## Detailed instructions
 
 There are documents covering the following.
@@ -30,6 +42,6 @@ There are documents covering the following.
 
 - Once installed, you should test using the [testing procedures](docs/testing.md).
 
-- Upgrade, monitoring, and diagnostics collection are covered in the [operations document](docs/operations.md).
+- Upgrade, monitoring, alerting, client secret rotation, and diagnostics collection are covered in the [operations document](docs/operations.md).
 
 - If you are just using the system (making calls and managing calendars) you should read the [user instructions](docs/user.md).

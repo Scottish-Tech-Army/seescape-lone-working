@@ -18,13 +18,18 @@ def get_metrics(days_ago, period=3600, bucket=None, app=None):
     Collects CloudWatch metrics for a specific day and writes them to CSV.
 
     Args:
-        days_ago (int): Number of days in the past to collect metrics for
+        days_ago (int): Number of days in the past to collect metrics for.
+            0 means today; in that case the query covers the full UTC day and
+            CloudWatch returns only the populated datapoints so far, giving a
+            partial-day snapshot. Re-running for the same day overwrites the
+            S3 object. Intended for manual testing on a test rig; cron always
+            passes 1 or more.
         period (int, optional): Metrics aggregation period in seconds (default: 3600)
         bucket (str): S3 bucket name to write metrics to, if None writes to local file
         app (str): Application name used in metrics namespace and path construction
 
     Raises:
-        ValueError: If app or bucket is None, or if days_ago is not a positive integer
+        ValueError: If app or bucket is None, or if days_ago is not a non-negative integer
 
     The function:
     - Collects metrics from AWS/Lambda and app-specific namespaces
@@ -41,8 +46,8 @@ def get_metrics(days_ago, period=3600, bucket=None, app=None):
     # Firewall args
     if app is None or bucket is None:
         raise ValueError("The 'app' and bucket args must be provided.")
-    if not isinstance(days_ago, int) or days_ago <= 0:
-        raise ValueError("The 'days_ago' argument must be a positive integer.")
+    if not isinstance(days_ago, int) or days_ago < 0:
+        raise ValueError("The 'days_ago' argument must be a non-negative integer.")
 
     # Get date in UTC
     date = (datetime.now(dt.timezone.utc) - timedelta(days=days_ago)).date()

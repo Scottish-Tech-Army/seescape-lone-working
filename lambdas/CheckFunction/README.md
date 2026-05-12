@@ -2,6 +2,8 @@
 
 This function performs the check capability. It is triggered every 15 minutes to find lone workers who have checked in but not checked out, or who failed to check out from an appointment after checking in.
 
+The function reads the calendar via Microsoft Graph's `/calendarView` endpoint, which expands recurring series into individual occurrences for the queried time window. Each occurrence is treated as an independent appointment for the purposes of category checks, mail dispatch, and category updates — the series master and sibling occurrences are never modified.
+
 The flow is as follows.
 
 - Log into the configured calendar
