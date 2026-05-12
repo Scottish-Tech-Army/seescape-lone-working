@@ -1,6 +1,14 @@
 # Testing
 
-This document describes testing that can be done.
+This document describes testing that can be done. It covers the following.
+
+1. [Unit tests](#unit-tests).
+
+2. [Validating M365 credentials](#validating-credentials) in isolation.
+
+3. [Per-Lambda validation](#validating-the-lambda-functions) in the AWS console.
+
+4. [The end-to-end test plan](#end-to-end-test-plan), including a dedicated subsection for [recurring meetings](#recurring-meetings).
 
 ## Unit tests
 
@@ -111,7 +119,7 @@ This checks that the lambda functions are doing what they should be doing, witho
 
 *End to end testing assumes that you exist with the correct mobile phone number in the M365 client, [as documented in the user instructions](user.md#configuring-user-accounts), and also that you have access to the shared mailbox to check what is happening.*
 
-A good set of end to end tests to try is the following.
+To get a good level of end to end testing, follow the test cases below. Unless otherwise stated, use the lone worker shared mailbox to create meetings.
 
 ### Tyre kicking
 
@@ -125,25 +133,25 @@ A good set of end to end tests to try is the following.
 
 ### Mainline
 
-- Create two meetings starting around now, one with your number and one with another.
+- Create two meetings starting around now, one with your number and one with another (as invited members).
 
     - Dial into the meeting to check in. The meeting should acquire a `Checked-In` category.
 
-    - Dial in to check in again (you should get an "already checked in" message)
+    - Dial in to check in again. You should get an "already checked in" message.
 
-    - Try to check out - it work, even though the meeting has only just started. The meeting should acquire a `Checked-Out` category.
+    - Try to check out - it should work, even though the meeting has only just started. The meeting should acquire a `Checked-Out` category.
 
-    - Dial in and check out. This should explain that the meeting is already checked out.
+    - Dial in and check out again. You should get an "already checked out" message.
 
-    - Remove the checkin and checkout categories, then try to checkout again - it should fail as you have not checked in.
+    - Remove the checkin and checkout categories, then try to checkout again. You should get an error saying you have not checked in.
 
 - Set up two back to back meetings with the changeover being the current time. Mark the first as `Checked-In` (not `Checked-Out`) and then check into the second.
 
     - You should see that the older meeting gets a `Checked-Out` as well as the newer one getting a `Checked-In`
 
-    - Try to check in again, and make sure that you get an "already checked out" message.
+    - Try to check in again, and make sure that you get an "already checked in" message.
 
-    - Make sure you can check out of the second meeting immediately.
+    - Call in to check out. This should succeed.
 
 - Set up two back to back meetings with the changeover being the current time. Mark the first as `Checked-In` (not `Checked-Out`).
 
@@ -177,6 +185,8 @@ A good set of end to end tests to try is the following.
 
 These tests check that recurring meetings are handled correctly: each occurrence in a series should be treated as its own appointment, and any category or body change should affect only that occurrence — not the series master, and not sibling occurrences.
 
+The prerequisites for these tests are the same as the end-to-end plan above (real mobile registered, shared-mailbox access). Several tests also require you to invoke `CheckFunction` manually from the AWS Lambda console — see [Validating the lambda functions](#validating-the-lambda-functions) above for how.
+
 For setup, "daily recurring meeting" means a series whose recurrence pattern is daily. A daily cadence is convenient for testing because today's and tomorrow's occurrences are easy to inspect side-by-side; the same behaviour applies to weekly or monthly cadences.
 
 After every step that mutates a meeting, inspect both the **series master** (the original recurring event) and at least one **sibling occurrence** (e.g. tomorrow's) in Outlook to confirm they are unmodified, in addition to checking the targeted occurrence.
@@ -189,11 +199,13 @@ After every step that mutates a meeting, inspect both the **series master** (the
 
     - Confirm that **today's occurrence only** has the `Checked-In` category. The series master and tomorrow's occurrence should be unmodified.
 
+    - Dial in to check in again — you should get an "already checked in" message.
+
     - Dial in to check out (`2` option). The call should succeed.
 
     - Confirm that today's occurrence now has both `Checked-In` and `Checked-Out`, and that the series master and tomorrow's occurrence are still unmodified.
 
-    - Dial in to check in again — you should get an "already checked in" message.
+    - Dial in to check in again — you should get an "already checked out" message.
 
     - Dial in to check out again — you should get an "already checked out" message.
 
@@ -255,7 +267,9 @@ Note: Outlook's GUI only lets you edit categories on the entire series, not on a
 
 #### Edit-series footgun
 
-This documents an Outlook-side behaviour that the tooling cannot prevent: editing a recurring series's *non-category* properties (time, subject, attendees, …) silently wipes per-occurrence categories that the tooling has set, leaving no record that a check-in or check-out had happened. The detailed Graph/Outlook semantics are nuanced (a series-level *category* edit respects per-occurrence exceptions, while a series-level edit of anything else does not), but the user-facing summary is simply: editing a recurring series can clobber tooling-set state on its occurrences. This test pins the behaviour so future regressions are caught.
+This documents an Outlook-side behaviour that the tooling cannot prevent: editing a recurring series's *non-category* properties (time, subject, attendees, …) silently wipes per-occurrence categories that the tooling has set, leaving no record that a check-in or check-out had happened. This test pins the behaviour so future regressions are caught.
+
+*Background: the underlying Graph/Outlook semantics are asymmetric — a series-level category edit respects per-occurrence exceptions, while a series-level edit of any other property does not. The user-facing summary is simply that editing a recurring series can clobber tooling-set state on its occurrences.*
 
 - Reuse the daily recurring meeting from the first test in this section, after both check-in and check-out have run (so today's occurrence carries `Checked-In` and `Checked-Out`).
 

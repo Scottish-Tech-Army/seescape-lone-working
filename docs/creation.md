@@ -1,8 +1,16 @@
 # Initial installation
 
-This document specifies how to perform initial installation. It assumes that you have set up all the [prerequisites requirements](prereqs.md). You should work through all sections of this document installing the various components in turn.
+This document specifies how to perform initial installation, in four stages.
 
-*All scripts should report success and return a successful return code, or your deployment has failed.*
+1. [Deploy AWS resources](#run-scripts-to-deploy-resources).
+
+2. [Populate secrets in Parameter Store](#update-secrets).
+
+3. [Configure Amazon Connect and assign a phone number](#configure-amazon-connect).
+
+4. Optionally [enable metrics export](#enable-metrics-export).
+
+It assumes that you have completed the [prerequisites](prereqs.md), and that each script in this document reports success and returns zero; if any does not, the deployment has failed and you should stop and diagnose before continuing.
 
 ## Run scripts to deploy resources
 

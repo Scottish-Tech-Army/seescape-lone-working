@@ -2,6 +2,8 @@
 
 This lambda handles user input, updating the calendar as appropriate.
 
+Appointment lookups use Microsoft Graph's `/calendarView` endpoint so that occurrences of a recurring series are matched and updated individually — the series master and sibling occurrences are never modified.
+
 It is called with two arguments.
 
 - A phone number in E164 format

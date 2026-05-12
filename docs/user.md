@@ -94,7 +94,9 @@ When a meeting has been created, you can view its categories (click on the `Cate
 
 - `Emergency` - the lone worker made an emergency call at a time when they may have been in this meeting.
 
-You may set these categories manually on **single-instance meetings**. For example, if a lone worker has left the meeting but did not check out, it is possible to manually set the `Checked-Out` category, and the meeting will not trigger a missed checkout mail. For recurring meetings the manual override path is more restricted — see [Recurring meetings](#recurring-meetings) below.
+*All five categories above can be set manually only on single-instance meetings; for recurring meetings information see [Recurring meetings](#recurring-meetings) below.*
+
+For example, if a lone worker has left the meeting but did not check out, it is possible to manually set the `Checked-Out` category on a single-instance meeting, and the meeting will not trigger a missed checkout mail.
 
 ### Recurring meetings
 
@@ -102,11 +104,11 @@ The application supports recurring meetings (a series with the same time and att
 
 Two important caveats apply when using recurring meetings.
 
-- **Manual category edits on a single occurrence are not supported.** Outlook does not provide a reliable way to set or change categories on one occurrence of a recurring series. Only the application itself (via dial-in or `CheckFunction`) can do that. If a lone worker calls to say they cannot attend (or has already attended), there is no manual way to mark today's occurrence as `Checked-In` or `Checked-Out` — the only available office override is to **delete that occurrence** from the series, which removes it from the schedule.
+- *Manual category edits on a single occurrence are not supported.* Outlook does not provide a reliable way to set or change categories on one occurrence of a recurring series. Only the application itself (via dial-in or `CheckFunction`) can do that. If a lone worker calls to say they cannot attend (or has already attended), there is no manual way to mark today's occurrence as `Checked-In` or `Checked-Out` — the only available office override is to delete that occurrence from the series, which removes it from the schedule.
 
-- **Editing the series can silently wipe per-occurrence state.** Changing the master series's time, subject, attendees, or any other property in Outlook can clear `Checked-In` / `Checked-Out` / `Missed-Check-In` / `Emergency` categories from occurrences that have already happened, and editing a recurring meeting can also silently remove attendees. Once a recurring series is in active use, avoid editing it; if changes are needed, end the series and start a new one.
+- *Editing the series can silently wipe per-occurrence state.* Changing the master series's time, subject, attendees, or any other property in Outlook can clear `Checked-In` / `Checked-Out` / `Missed-Check-In` / `Emergency` categories from occurrences that have already happened, and editing a recurring meeting can also silently remove attendees. Once a recurring series is in active use, avoid editing it; if changes are needed, end the series and start a new one.
 
-If a lone worker's schedule may need manual office intervention (e.g. ad-hoc absences), **prefer creating single-instance meetings rather than a recurring series**. Singletons support full manual category editing through Outlook.
+If a lone worker's schedule may need manual office intervention (e.g. ad-hoc absences), *prefer creating single-instance meetings rather than a recurring series*. Singletons support full manual category editing through Outlook.
 
 ### Emergency emails
 
@@ -140,4 +142,4 @@ You must check in within 15 minutes of the start of the meeting, and check out a
 
     - "3" in case of emergency, where you wish the office staff to call the police or otherwise react. You will hear a message saying that all operators are busy; this is in case the call is overheard.
 
-- If you are unable to check in or out, or cannot attend a meeting, inform the office staff. They can cancel or delete the meeting, and for single-instance meetings they can also manually check it in or out; manual category edits are not supported on recurring meetings.
+- If you are unable to check in or out, or cannot attend a meeting, inform the office staff. They can cancel or delete the meeting, and they can also manually check single-instance meetings in or out; see [Recurring meetings](#recurring-meetings) for what office staff can do for recurring series.
