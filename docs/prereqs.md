@@ -1,6 +1,6 @@
 # Prerequisites
 
-You must have done all the following before you start installation.
+You must have done all the following before you start installation of the software application.
 
 1. [Set up an AWS subscription to use](#aws-subscription)
 
@@ -8,7 +8,7 @@ You must have done all the following before you start installation.
 
 3. [Created the configuration files](#config-files)
 
-All processes documented here are assumed to run using the linux command line, and depend on:
+All processes documented here are assumed to run using the Linux command line, and depend on the following tools being installed.
 
 - python 3 with the `venv` module (scripts create a virtualenv at `venv/` in the repo root and install their Python dependencies from `scripts/requirements.txt` automatically — no host-side `pip install` is required).
 
@@ -16,17 +16,13 @@ All processes documented here are assumed to run using the linux command line, a
 
 - Various command line tools including `bash`, `sed`, `awk`, and `jq`.
 
-## AWS subscription
+## AWS account
 
-This depends on an AWS subscription (strictly speaking called an account in AWS terminology). It's normally best to use a dedicated subscription.
-
-The AWS CLI must be configured with a profile whose name will be used later in the configuration file, and with a default region that matches where everything is to be deployed.
-
-Many commands will error out if your login expires, in which case you should login again using either `aws sso login --use-device-code` or by playing with `.aws/credentials`.
+This depends on an AWS account (subscription). It's normally best to use a dedicated account. The AWS CLI must be configured with the correct environment variables to log into that account.
 
 ## M365 account
 
-The M365 requirements are to set up an M365 email account with a calendar to use, plus the capability for the application to log into it. This process is fiddly, but that's the trouble with security.
+You must have an M365 tenant available.
 
 ### Process overview
 
@@ -34,9 +30,9 @@ Setting this up requires three steps.
 
 1. Getting an [M365 tenant](#tenant).
 
-2. Creating a [shared mailbox](#shared-mailbox)
+2. Creating a [shared mailbox](#shared-mailbox).
 
-3. Setting up an [application](#application)
+3. Setting up an [application](#application) (which here means an OAuth2 application, i.e. the security configuration, not the actual software).
 
 The outputs from this process will include:
 
@@ -44,13 +40,13 @@ The outputs from this process will include:
 
 2. Email address and password
 
-3. ClientID and ClientSecret for the app
+3. ClientID and ClientSecret for the app, together with their expiry date.
 
-Store these off securely; you'll need all of them later. They map onto the Parameter Store entries listed in [Update secrets](creation.md#update-secrets).
+Store these off securely; you'll need all of them later. They map onto the Parameter Store entries listed in [Update secrets](creation.md#update-secrets) when you come to install.
 
 ### Tenant
 
-You must have an M365 business or enterprise tenant to use. If you do not have such a tenant, you can sign up for a [free M365 tenant as a non-profit](https://www.microsoft.com/en-gb/microsoft-365/nonprofit/), or failing that just create a [new paid tenant](https://www.microsoft.com/en-gb/microsoft-365/business/microsoft-365-plan-chooser).
+You must have an M365 business or enterprise tenant to use. If you do not have such a tenant, you can sign up for a [free M365 tenant as a non-profit](https://www.microsoft.com/en-gb/microsoft-365/nonprofit/), or failing that just create a [new paid tenant](https://www.microsoft.com/en-gb/microsoft-365/business/microsoft-365-plan-chooser) (which is free for a couple of months).
 
 Once you have your tenant, you need to [find your organisation's tenant ID](https://learn.microsoft.com/en-us/sharepoint/find-your-office-365-tenant-id), and store it safely for future use.
 
@@ -192,4 +188,3 @@ You need to create two configuration files for your deployment. Assuming your or
     - Copy this file to create one called `mycharity_env.sh` in the `config` directory.
 
     - Edit the fields as appropriate. Many will be able to just use the defaults, but you should at least change your `AWS_PROFILE` value, and the name of your config file (`mycharity.yaml` in this example).
-
