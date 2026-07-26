@@ -126,13 +126,16 @@ You can find logs, dashboards and metrics under CloudWatch.
 
 This costs money to run. Roughly the cost implications are as follows.
 
-- There is no additoinal cost to the M365 tenant; shared mailboxes are free, and so are emails.
+- There is no additional cost to the M365 tenant; shared mailboxes are free, and so are emails.
 
 - AWS costs are a little more complicated.
 
-    - In AWS the predominant cost is that of the lambda function running with provisioned concurrency. If the provisioned concurrency is set to 1 in configuration, then the cost is around $15 (so perhaps £12) per month. If set to zero, then the cost is negligible.
+    - If *provisioned concurrency* is used (i.e. the `CONCURRENCY` value is set non-zero in the config file), then the cost is around $15 per month times the value. If set to zero, then the cost is negligible.
 
-    - Each phone call incurs a cost of $0.038 per minute (minimum billing period one minute). If you have 5 staff who make 20 calls per week, and are taking the cost of having a freephone number, then that is around $16 per month - so very comparable to the cost of the lambda provisioning.
+    - Each phone call incurs a cost of $0.038 per minute (minimum billing period one minute). If you have 5 staff who make 20 calls per week, and are taking the cost of having a freephone number, then that is around $16 per month.
 
     - There are other costs for storage, configuration and so on. These are low enough to be insignificant compared to the above two.
+
+    In practical terms, the cost of a customer who has around 10-20 meetings per week has historically been $8 to $10 including tax.
+
 
