@@ -170,7 +170,15 @@ def update_appointment(manager, appointment, action, ignore_already_done=False):
     changes['categories'] = categories
 
     body = appointment['body']
-    body['content'] = body['content'].replace("</body>", f"{body_message}</body>")
+    content = body['content']
+    if "</body>" in content:
+        content = content.replace("</body>", f"{body_message}</body>")
+    else:
+        # Empty or non-HTML-wrapped body (e.g. a newly created appointment with no
+        # description) has no closing tag to replace against, so append instead of
+        # silently dropping the note.
+        content = content + body_message
+    body['content'] = content
     changes['body'] = body
     manager.patch_calendar_event(appointment['id'], changes)
     logger.info("Appointment updated successfully")

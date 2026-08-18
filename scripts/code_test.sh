@@ -9,7 +9,12 @@ cd "$(dirname "$0")/.."
 echo "Setting up test virtual environment and installing dependencies"
 pushd lambdas
 python -m venv venv
-source venv/bin/activate
+# venv layout differs: bin/activate on Linux/Mac, Scripts/activate on native Windows Python.
+if [ -f venv/bin/activate ]; then
+    source venv/bin/activate
+else
+    source venv/Scripts/activate
+fi
 
 # Install test dependencies for all lambda functions
 for DIR in */

@@ -38,7 +38,7 @@ The outputs from this process will include:
 
 1. Tenant GUID
 
-2. Email address and password
+2. Email address (the shared mailbox has no password of its own - the app authenticates via the ClientID/ClientSecret below, not by signing in to the mailbox)
 
 3. ClientID and ClientSecret for the app, together with their expiry date.
 

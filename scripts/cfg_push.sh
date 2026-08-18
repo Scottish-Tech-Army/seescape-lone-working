@@ -24,8 +24,14 @@ if [ ! -d venv ]; then
     echo "  Creating venv for scripts"
     python -m venv venv
 fi
-venv/bin/pip install --quiet -r scripts/requirements.txt
-venv/bin/python lambdas/dependencies/src/cfg_parser.py ${CFG_FULL_PATH}
+# venv layout differs: bin/ on Linux/Mac, Scripts/ on native Windows Python.
+if [ -d venv/bin ]; then
+    VENV_BIN=venv/bin
+else
+    VENV_BIN=venv/Scripts
+fi
+${VENV_BIN}/pip install --quiet -r scripts/requirements.txt
+${VENV_BIN}/python lambdas/dependencies/src/cfg_parser.py ${CFG_FULL_PATH}
 
 # Validated - upload.
 echo "  Uploading to parameter store"

@@ -1,3 +1,13 @@
 requests
 pyyaml
 jsonschema
+# referencing 0.37.0 dropped its typing_extensions fallback and uses TypeVar(default=...),
+# a Python 3.13-only stdlib feature - breaks the Lambda runtime (Python 3.12) at import time.
+# Pin below that until either Lambda moves to 3.13 or referencing restores 3.12 support.
+referencing<0.37.0
+# referencing's typing_extensions dependency is conditional on "python_version < 3.13",
+# a marker pip evaluates against the LOCAL build machine's Python, not the Lambda
+# runtime's (3.12) - on a machine running Python 3.13+ that marker is false and pip
+# silently skips it, leaving referencing's fallback import with nothing to fall back to.
+# List it unconditionally so it's always bundled regardless of the build machine's version.
+typing_extensions>=4.4.0

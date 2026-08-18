@@ -106,3 +106,14 @@ def test_update_appointment_preserves_categories(dummy_manager):
     assert "ExistingCategory" in appointment["categories"]
     assert utils.CHECKED_IN in appointment["categories"]
     assert len(appointment["categories"]) == 2
+
+@freeze_time("2024-01-01 10:00:00")
+def test_update_appointment_empty_body(dummy_manager):
+    """A newly created appointment with no description has an empty body with no
+    </body> tag to replace against - the note must be appended, not silently dropped."""
+    appointment = make_test_appointment(body_content="")
+
+    result = connect.update_appointment(dummy_manager, appointment, connect.KEY_CHECK_IN)
+
+    assert result is False  # Not already done
+    assert appointment["body"]["content"] == "<p>Checked in by phone at 2024-01-01 10:00:00</p>\r\n"
