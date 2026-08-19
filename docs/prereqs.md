@@ -10,6 +10,8 @@ You must have done all the following before you start installation of the softwa
 
 All processes documented here are assumed to run using the Linux command line, and depend on the following tools being installed.
 
+*On Windows, [WSL](https://learn.microsoft.com/en-us/windows/wsl/) gives you a genuine Linux environment and these instructions should work as-is. Running via Git Bash with native Windows Python (i.e. not WSL) also works, but needs two things WSL doesn't: `jq` and `zip` are not installed by default (available via [Scoop](https://scoop.sh/) - `scoop install jq zip`), and any `aws` command whose argument starts with a single `/` (e.g. `aws ssm get-parameter --name /loneworker/config`) needs `MSYS_NO_PATHCONV=1` set first, since Git Bash otherwise silently rewrites that argument into a Windows path before `aws` ever sees it.*
+
 - python 3 with the `venv` module (scripts create a virtualenv at `venv/` in the repo root and install their Python dependencies from `scripts/requirements.txt` automatically — no host-side `pip install` is required).
 
 - The AWS CLI
