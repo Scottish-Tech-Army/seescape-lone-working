@@ -2,6 +2,8 @@
 # Utility functions for various deployment code
 set -euo pipefail
 
+source config/global_config.sh
+
 # Parameters for cloud formation
 export PARAMETERS="ParameterKey=bucketName,ParameterValue=${BUCKET_NAME} ParameterKey=environment,ParameterValue=${ENVIRONMENT} ParameterKey=app,ParameterValue=${APP}"
 # Tags to be supplied on resources

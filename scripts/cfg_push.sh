@@ -20,9 +20,13 @@ echo "  Validating file"
 # Validation runs cfg_parser.py, which imports jsonschema. We use a top-level
 # venv so the dependency does not have to be installed on the host Python.
 # The venv is named "venv" so .gitignore and code_clean.sh pick it up.
+# Unlike code_build.sh and code_test.sh, this script does not run
+# check_python.sh: this venv only runs cfg_parser.py locally and never
+# produces a lambda deployment artefact, so the runtime pin in
+# config/global_config.sh does not apply to it.
 if [ ! -d venv ]; then
     echo "  Creating venv for scripts"
-    python -m venv venv
+    python3 -m venv venv
 fi
 venv/bin/pip install --quiet -r scripts/requirements.txt
 venv/bin/python lambdas/dependencies/src/cfg_parser.py ${CFG_FULL_PATH}
