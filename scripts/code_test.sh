@@ -5,10 +5,14 @@ set -euo pipefail
 # This script must run from the parent directory of the scripts directory
 cd "$(dirname "$0")/.."
 
+# Abort before creating any venv if the host interpreter doesn't match the
+# Lambda runtime pinned in config/global_config.sh.
+bash scripts/check_python.sh
+
 # Set up the test venv, under the lambda directory.
 echo "Setting up test virtual environment and installing dependencies"
 pushd lambdas
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate
 
 # Install test dependencies for all lambda functions

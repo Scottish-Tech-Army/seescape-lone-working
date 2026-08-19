@@ -10,7 +10,9 @@ You must have done all the following before you start installation of the softwa
 
 All processes documented here are assumed to run using the Linux command line, and depend on the following tools being installed.
 
-- python 3 with the `venv` module (scripts create a virtualenv at `venv/` in the repo root and install their Python dependencies from `scripts/requirements.txt` automatically — no host-side `pip install` is required).
+- Python 3.14 specifically, with the `venv` module, and `python3` on your `PATH` resolving to it. The required version is pinned in [`config/global_config.sh`](../config/global_config.sh) and checked automatically by `scripts/check_python.sh`.
+
+- An x86_64 build host. The lambdas are deployed as `x86_64`, and the build installs dependencies with the host's `pip`, so building on an ARM machine (an Apple Silicon Mac, for example) produces `aarch64` wheels that will not run on the deployed lambdas. Unlike the Python version, this is not checked automatically, so it is worth confirming before you start.
 
 - The AWS CLI
 
