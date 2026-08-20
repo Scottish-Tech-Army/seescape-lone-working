@@ -28,9 +28,9 @@ All processes documented here are assumed to run using the Linux command line, a
 
 ### A note for AWS CloudShell users
 
-CloudShell is a convenient alternative to a local machine - no local install needed for most of the prerequisites above - but its default `python3` is version 3.9, nowhere near the pinned version, so `scripts/check_python.sh` will refuse to run until a matching Python is installed. Two things about CloudShell's environment matter for how you do that:
+CloudShell is a convenient alternative to a local machine - no local install needed for most of the prerequisites above - but AWS updates its default Python version over time and doesn't publish a fixed number for it, so don't assume what it currently is; check with `python3 --version` first. Unless it happens to exactly match the version pinned in `config/global_config.sh`, `scripts/check_python.sh` will refuse to run until a matching Python is installed. Two things about CloudShell's environment matter for how you do that:
 
-- Only your **home directory persists** between sessions; anything a package manager installs elsewhere is wiped when the session ends and has to be reinstalled next time.
+- Only your **home directory persists between sessions** - anything a package manager installs elsewhere is wiped when the session ends and has to be reinstalled next time, and the same applies to *active session settings* (shell exports, etc. that aren't saved into a file under `$HOME` like `.bashrc`) - those need reloading every session too, not just files outside `$HOME`.
 - Persistent storage is limited to **1 GB total**, so this isn't the place to install much beyond what's needed here.
 
 The standard way to get a specific Python version on Amazon Linux is [pyenv](https://github.com/pyenv/pyenv), which builds Python from source into your home directory - so the build itself survives across sessions, even though the compiler and libraries used to build it don't.
