@@ -12,8 +12,19 @@ bash scripts/check_python.sh
 # Set up the test venv, under the lambda directory.
 echo "Setting up test virtual environment and installing dependencies"
 pushd lambdas
+# "python3 -m venv" on an existing directory does not clear old site-packages,
+# so a venv created under a previously-pinned Python version can leave native
+# extensions (e.g. rpds_py) compiled for that old version in place. They then
+# fail to import under the new interpreter even though pyvenv.cfg correctly
+# reports the new version. Always start clean.
+rm -rf venv
 python3 -m venv venv
-source venv/bin/activate
+# venv layout differs: bin/activate on Linux/Mac, Scripts/activate on native Windows Python.
+if [ -f venv/bin/activate ]; then
+    source venv/bin/activate
+else
+    source venv/Scripts/activate
+fi
 
 # Install test dependencies for all lambda functions
 for DIR in */

@@ -37,7 +37,10 @@ do
     pushd lambdas/${TARGET}
 
     echo "Packaging target ${TARGET}"
-    # We are already in lambdas/TARGET, so this clears lambdas/TARGET/build
+    # Bug: this used to be "rm -rf ${TARGET}/build", which - since we are already inside
+    # lambdas/${TARGET} via pushd - resolved to a nonexistent nested path and silently did
+    # nothing, leaving stale build output (e.g. platform-mismatched .pyd files) from any
+    # previous build in place for pip's -t install to skip over rather than replace.
     rm -rf build
     if [[ "$TARGET" == "dependencies" ]]; then
         BUILDDIR=build/python
@@ -54,8 +57,21 @@ do
 
     # Create a temporary venv for installing production dependencies
     python3 -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt -t $BUILDDIR
+    # venv layout differs: bin/activate on Linux/Mac, Scripts/activate on native Windows Python.
+    if [ -f venv/bin/activate ]; then
+        source venv/bin/activate
+    else
+        source venv/Scripts/activate
+    fi
+    # check_python.sh has already confirmed the host's python3 matches the pinned
+    # Lambda runtime version, so --python-version/--abi don't need to be forced here.
+    # --platform/--only-binary still need forcing though: building on Windows or Mac
+    # would otherwise pull in native-extension wheels (e.g. rpds_py, a jsonschema
+    # dependency) compiled for the host's own OS/architecture, which then fail to
+    # import at runtime in Lambda (which always runs manylinux x86_64).
+    pip install -r requirements.txt -t $BUILDDIR \
+        --platform manylinux2014_x86_64 \
+        --only-binary=:all:
     deactivate
     rm -rf venv
 

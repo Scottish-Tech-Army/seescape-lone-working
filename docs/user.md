@@ -18,6 +18,8 @@ Office staff set up meetings in the calendar of a shared mailbox (the `loneworke
 
     - This plays a message about contacting the office and a callback from Veronica, in case the call is overheard.
 
+        *"Veronica" is a deliberately fictional name, the same pattern as the "Ask for Angela" scheme used in bars and venues: a plausible-sounding name that is not tied to any real member of staff, so a caller under duress can say it without anyone overhearing realising anything is wrong. Do not replace it with a real staff member's name when customising this for a new deployment - that undermines the disguise (real people can be asked about a message they never took, and the name goes stale if that person changes role), and it should not be personal to any specific charity in the first place. Keep "Veronica", or pick another clearly fictional name if a charity wants their own. Whatever wording is used here should also avoid stating outright that an emergency has been raised, to preserve the fiction that the caller is just leaving a routine message.*
+
     - The application sends an email to the emergency list.
 
     - Any meeting that is found that seems to match is marked with an "Emergency" category in the shared mailbox calendar.

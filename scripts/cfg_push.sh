@@ -24,12 +24,24 @@ echo "  Validating file"
 # check_python.sh: this venv only runs cfg_parser.py locally and never
 # produces a lambda deployment artefact, so the runtime pin in
 # config/global_config.sh does not apply to it.
-if [ ! -d venv ]; then
-    echo "  Creating venv for scripts"
-    python3 -m venv venv
+#
+# It still needs to match whatever the host's current python3 is, though - a
+# venv left over from before a host Python upgrade (e.g. this repo's own
+# migration to 3.14) keeps native extensions (e.g. rpds_py) compiled for the
+# old version, which then fail to import under the new interpreter even
+# though the venv still looks intact. So always start clean rather than
+# reusing an existing directory.
+rm -rf venv
+echo "  Creating venv for scripts"
+python3 -m venv venv
+# venv layout differs: bin/ on Linux/Mac, Scripts/ on native Windows Python.
+if [ -d venv/bin ]; then
+    VENV_BIN=venv/bin
+else
+    VENV_BIN=venv/Scripts
 fi
-venv/bin/pip install --quiet -r scripts/requirements.txt
-venv/bin/python lambdas/dependencies/src/cfg_parser.py ${CFG_FULL_PATH}
+${VENV_BIN}/pip install --quiet -r scripts/requirements.txt
+${VENV_BIN}/python lambdas/dependencies/src/cfg_parser.py ${CFG_FULL_PATH}
 
 # Validated - upload.
 echo "  Uploading to parameter store"
