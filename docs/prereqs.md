@@ -26,6 +26,44 @@ All processes documented here are assumed to run using the Linux command line, a
 - any `aws` command whose argument starts with a single `/` (e.g. `aws ssm get-parameter --name /loneworker/config`) needs `MSYS_NO_PATHCONV=1` set first, since Git Bash otherwise silently rewrites that argument into a Windows path before `aws` ever sees it.
 - watch out for `python3` resolving to the wrong interpreter. Windows ships a `python3` [app execution alias](https://learn.microsoft.com/en-us/windows/apps/desktop/manage-app-execution-aliases) that can silently shadow a real install with an unrelated (often older) Python version - `command -v python3` and `python3 --version` are worth checking explicitly before relying on `scripts/check_python.sh` to catch a mismatch. Installing the pinned version via Scoop (`scoop install python`) puts its own `python3` shim ahead of the Windows one on `PATH`.
 
+### A note for AWS CloudShell users
+
+CloudShell is a convenient alternative to a local machine - no local install needed for most of the prerequisites above - but its default `python3` is version 3.9, nowhere near the pinned version, so `scripts/check_python.sh` will refuse to run until a matching Python is installed. Two things about CloudShell's environment matter for how you do that:
+
+- Only your **home directory persists** between sessions; anything a package manager installs elsewhere is wiped when the session ends and has to be reinstalled next time.
+- Persistent storage is limited to **1 GB total**, so this isn't the place to install much beyond what's needed here.
+
+The standard way to get a specific Python version on Amazon Linux is [pyenv](https://github.com/pyenv/pyenv), which builds Python from source into your home directory - so the build itself survives across sessions, even though the compiler and libraries used to build it don't.
+
+- Install the build dependencies (needed once per session, since these land outside `$HOME`; if a package name below has changed on CloudShell's current Amazon Linux version, `dnf search <name>` will find the current equivalent):
+
+    ~~~bash
+    sudo dnf install -y gcc make patch zlib-devel bzip2 bzip2-devel readline-devel sqlite sqlite-devel openssl-devel tk-devel libffi-devel xz-devel
+    ~~~
+
+- Install pyenv itself and load it into your shell (this only needs doing once - pyenv installs into `$HOME/.pyenv`, so it persists):
+
+    ~~~bash
+    curl https://pyenv.run | bash
+    echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
+    echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
+    echo 'eval "$(pyenv init -)"' >> ~/.bashrc
+    source ~/.bashrc
+    ~~~
+
+- Find and install the pinned version (match this to whatever [`config/global_config.sh`](../config/global_config.sh) currently pins - substitute the exact patch version pyenv lists):
+
+    ~~~bash
+    pyenv install --list | grep '^  3\.14'
+    pyenv install 3.14.<patch>
+    pyenv global 3.14.<patch>
+    python3 --version
+    ~~~
+
+Since `$HOME/.pyenv` and the `.bashrc` lines both persist, the pinned Python is available automatically in future CloudShell sessions without repeating the pyenv install step - only the `dnf install` step needs rerunning if you ever need to rebuild it.
+
+*This sequence is based on general Amazon Linux / pyenv guidance rather than something run against this project's exact scripts on CloudShell - if a step doesn't match what you see, that's worth fixing here rather than working around silently.*
+
 ## AWS account
 
 This depends on an AWS account (subscription). It's normally best to use a dedicated account. The AWS CLI must be configured with the correct environment variables to log into that account.
