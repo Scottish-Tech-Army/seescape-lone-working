@@ -32,10 +32,6 @@ fi
 mkdir -p build
 
 # Build the packages
-# build/ is gitignored, so it never exists on a fresh checkout - create it up front
-# rather than letting the zip step fail on a missing output directory.
-mkdir -p build
-
 for TARGET in dependencies ConnectFunction CheckFunction MetricsFunction
 do
     pushd lambdas/${TARGET}

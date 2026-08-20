@@ -10,12 +10,6 @@ You must have done all the following before you start installation of the softwa
 
 All processes documented here are assumed to run using the Linux command line, and depend on the following tools being installed.
 
-*On Windows, [WSL](https://learn.microsoft.com/en-us/windows/wsl/) gives you a genuine Linux environment and these instructions should work as-is. Running via Git Bash with native Windows Python (i.e. not WSL) also works, but needs a few things WSL doesn't:*
-
-- *`jq` and `zip` are not installed by default (available via [Scoop](https://scoop.sh/) - `scoop install jq zip`).*
-- *any `aws` command whose argument starts with a single `/` (e.g. `aws ssm get-parameter --name /loneworker/config`) needs `MSYS_NO_PATHCONV=1` set first, since Git Bash otherwise silently rewrites that argument into a Windows path before `aws` ever sees it.*
-- *watch out for `python3` resolving to the wrong interpreter. Windows ships a `python3` [app execution alias](https://learn.microsoft.com/en-us/windows/apps/desktop/manage-app-execution-aliases) that can silently shadow a real install with an unrelated (often older) Python version - `command -v python3` and `python3 --version` are worth checking explicitly before relying on `scripts/check_python.sh` to catch a mismatch. Installing the pinned version via Scoop (`scoop install python`) puts its own `python3` shim ahead of the Windows one on `PATH`.*
-
 - Python 3.14 specifically, with the `venv` module, and `python3` on your `PATH` resolving to it. The required version is pinned in [`config/global_config.sh`](../config/global_config.sh) and checked automatically by `scripts/check_python.sh`.
 
 - An x86_64 build host. The lambdas are deployed as `x86_64`. `code_build.sh` explicitly targets `manylinux2014_x86_64` wheels when installing dependencies, so this is enforced automatically rather than relying on the host's own architecture matching.
@@ -23,6 +17,14 @@ All processes documented here are assumed to run using the Linux command line, a
 - The AWS CLI
 
 - Various command line tools including `bash`, `sed`, `awk`, and `jq`.
+
+### A note for Windows users
+
+[WSL](https://learn.microsoft.com/en-us/windows/wsl/) gives you a genuine Linux environment, and the instructions above should work as-is there. Running via Git Bash with native Windows Python (i.e. *not* WSL) also works, but needs a few things WSL doesn't:
+
+- `jq` and `zip` are not installed by default (available via [Scoop](https://scoop.sh/) - `scoop install jq zip`).
+- any `aws` command whose argument starts with a single `/` (e.g. `aws ssm get-parameter --name /loneworker/config`) needs `MSYS_NO_PATHCONV=1` set first, since Git Bash otherwise silently rewrites that argument into a Windows path before `aws` ever sees it.
+- watch out for `python3` resolving to the wrong interpreter. Windows ships a `python3` [app execution alias](https://learn.microsoft.com/en-us/windows/apps/desktop/manage-app-execution-aliases) that can silently shadow a real install with an unrelated (often older) Python version - `command -v python3` and `python3 --version` are worth checking explicitly before relying on `scripts/check_python.sh` to catch a mismatch. Installing the pinned version via Scoop (`scoop install python`) puts its own `python3` shim ahead of the Windows one on `PATH`.
 
 ## AWS account
 
