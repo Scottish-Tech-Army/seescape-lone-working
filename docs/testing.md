@@ -51,7 +51,7 @@ Once you have set up all of the M365 tenant information, it is very useful to te
 - Run the script.
 
     ~~~bash
-    python scripts/test_creds.py
+    python3 scripts/test_creds.py
     ~~~
 
 You should see the script running cleanly, reporting data to screen. If there are any errors, they will be reported, and you can figure out what is wrong; it should be fairly obvious whether it is a failed login, failure to read particular data or whatever.

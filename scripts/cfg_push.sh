@@ -20,10 +20,20 @@ echo "  Validating file"
 # Validation runs cfg_parser.py, which imports jsonschema. We use a top-level
 # venv so the dependency does not have to be installed on the host Python.
 # The venv is named "venv" so .gitignore and code_clean.sh pick it up.
-if [ ! -d venv ]; then
-    echo "  Creating venv for scripts"
-    python -m venv venv
-fi
+# Unlike code_build.sh and code_test.sh, this script does not run
+# check_python.sh: this venv only runs cfg_parser.py locally and never
+# produces a lambda deployment artefact, so the runtime pin in
+# config/global_config.sh does not apply to it.
+#
+# It still needs to match whatever the host's current python3 is, though - a
+# venv left over from before a host Python upgrade (e.g. this repo's own
+# migration to 3.14) keeps native extensions (e.g. rpds_py) compiled for the
+# old version, which then fail to import under the new interpreter even
+# though the venv still looks intact. So always start clean rather than
+# reusing an existing directory.
+rm -rf venv
+echo "  Creating venv for scripts"
+python3 -m venv venv
 # venv layout differs: bin/ on Linux/Mac, Scripts/ on native Windows Python.
 if [ -d venv/bin ]; then
     VENV_BIN=venv/bin
