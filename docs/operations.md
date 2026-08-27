@@ -42,23 +42,7 @@ The dashboard also shows the current days-until-expiry as a single-value widget 
 
 ### Create a new secret in Entra
 
-- Go to the [Entra Admin Centre](https://entra.microsoft.com).
-
-- Navigate to `Applications` → `App Registrations`, and find your application (the one named when you originally followed the [prerequisites](prereqs.md#application)).
-
-- Open the application and select `Certificates & secrets` on the left.
-
-- Click `New client secret`.
-
-- Fill in the description (something like `loneworker rotation YYYY-MM` so future operators can tell secrets apart) and pick an expiry of up to one year, and at least three months. Click `Add`.
-
-- A new entry appears in the list of client secrets. **Copy the `Value` column immediately** — once you leave or refresh the page it is gone forever and you must create another secret.
-
-    *⚠️ The list shows two columns, `Value` and `Secret ID`. You want the **Value**. The Secret ID is just an internal identifier and will not authenticate.*
-
-- Note the `Expires` date shown in the list. You will need this in ISO 8601 (`YYYY-MM-DD`) form below.
-
-- Optionally, delete the old client secret entry from the list. Alternatively, leave it until it expires (it stops working at that point anyway). A safer order is to leave the old one in place until you have confirmed the new one is working in Parameter Store, then delete it.
+Follow the instructions for how to [set up credentials](m365.md#credentials) to obtain new credentials.
 
 ### Update Parameter Store
 

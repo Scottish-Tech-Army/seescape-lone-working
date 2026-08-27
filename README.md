@@ -38,6 +38,8 @@ There are documents covering the following.
 
 - Before you deploy a new instance, you must have satisfied the [prerequisites to installation](docs/prereqs.md).
 
+- Some of these prerequisites must be performed by an M365 administrator; these are pulled out into [a separate M365 document](docs/m365.md).
+
 - You can then run various steps to perform [deployment creation](docs/creation.md).
 
 - Once installed, you should test using the [testing procedures](docs/testing.md).
