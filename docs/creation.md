@@ -55,7 +55,7 @@ This step deploys the main resources you will be using.
 
 *This process could be automated but is not for security reasons; we do not want passwords or IDs in config files.*
 
-Update the secrets to have the correct values as follows.
+Update the secrets to have the correct values from the [M365 configuration](prereqs.md#m365-account) as follows.
 
 - Go to the AWS console in a web browser.
 

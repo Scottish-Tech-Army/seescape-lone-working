@@ -34,9 +34,19 @@ The two sections below give specific instructions for using the application for 
 
 All data is stored in the calendar of the lone worker shared mailbox in Microsoft 365 (Outlook). Office staff monitor this calendar to track staff status, and monitor their emails for reported issues.
 
+### Configuring user accounts
+
+Every person who is to be tracked by the lone worker application must have a mobile phone number configured and be granted rights to the mailbox. As this must normally be done by an M365 admin, the instructions are in a section of the [M365 admin document](m365.md#configure-users).
+
+Once you have set up a lone worker's mobile number, you should have them test it, in case the number was entered incorrectly.
+
+- Have the user call the application number and press "1".
+
+- If they hear a message saying that no meeting was found, then all is well. If they hear a message saying that the number was not recognised, then things have gone wrong, and the number was not entered correctly.
+
 ### Accessing the shared mailbox calendar
 
-Users who are managing the shared mailbox calendar can view it in Outlook Web or the Outlook Application. *Office staff doing this must have permissions configured [as documented here](prereqs.md#account)*
+Users who are managing the shared mailbox calendar can view it in Outlook Web or the Outlook Application. *Office staff doing this must have permissions configured [as documented here](m365.md#configure-users).*
 
 - In Outlook Web, follow these steps.
 
@@ -51,34 +61,6 @@ Users who are managing the shared mailbox calendar can view it in Outlook Web or
     - In the Manage Calendars section, click `Open Calendar`, then `Open Shared Calendar`.
 
     - In the `Open a Shared Calendar` dialog box, enter the name of the shared mailbox.
-
-### Configuring user accounts
-
-Every person who is to be tracked by the lone worker application must have a mobile phone number configured. This can be done in two ways, depending on whether the user has an account in the same organisation or not.
-
-- If the lone worker has an account and email in the Microsoft 365 (Office / Outlook) tenant (organisation), the admin should set the mobile number. *In some tenants, users may have the rights to set their own mobile number, but that is not the Microsoft 365 default, and so an admin must do it.* To set up the mobile number in the account, do the following.
-
-    - Go to the [users tab](https://admin.microsoft.com/Adminportal/Home?#/users) in the Office 365 admin portal.
-
-    - Select the user in question.
-
-    - Click `Manage contact information`
-
-    - Set up the `mobilePhone` field (called `Mobile phone` in some places). This should be the user's phone number. If this is a UK phone number, then you can just use `07123123456` format; for a foreign number you have to use the `+447123123456` format.
-
-- If the person does not have an account in Microsoft 365 organisation but still needs to be tracked, then create a personal contact *in the shared mailbox*.
-
-    - Create a personal contact in the shared mailbox.
-
-    - Set the contact email address to be that of the user.
-
-    - Set the mobile phone field up exactly as above.
-
-Once you have set up a lone worker's mobile number, you should have them test it, in case the number was entered incorrectly.
-
-- Have the user call the application number and press "1".
-
-- If they hear a message saying that no meeting was found, then all is well. If they hear a message saying that the number was not recognised, then things have gone wrong, and the number was not entered correctly.
 
 ### Creating and managing meetings
 
