@@ -90,7 +90,7 @@ Once you have set up all of the M365 tenant information, it is very useful to te
 
 ## Config files
 
-You need to create two configuration files for your deployment. Assuming your organisation is called `mycharity`, then you should probably create config files called `mycharity_env.yaml` and `mycharity.yaml`.
+You need to create two configuration files for your deployment. Assuming your organisation is called `mycharity`, then you should probably create config files called `mycharity_env.sh` and `mycharity.yaml`.
 
 - There is a YAML document with various parameters in it. An example of this is [`example.yaml` in the config directory](../config/example.yaml).
 
