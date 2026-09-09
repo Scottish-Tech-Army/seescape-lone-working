@@ -34,7 +34,7 @@ The repository layout is as follows.
 
 There are documents covering the following.
 
-- There is an [architecture document](docs/architecture.md) that shows the design.
+- There is an [architecture document](docs/architecture.md) that shows the design. Per-component detail for each Lambda lives in its own README, linked from there.
 
 - Before you deploy a new instance, you must have satisfied the [prerequisites to installation](docs/prereqs.md).
 

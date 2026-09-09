@@ -97,22 +97,6 @@ def test_lambda_handler_unknown_phone(mock_manager):
     mock_manager.increment_counter.assert_any_call(connect.METRIC_UNKNOWN_CALLER)
     mock_manager.emit_metrics.assert_called_once()
 
-def test_lambda_handler_missing_phone(mock_manager):
-    """Test lambda handler with missing phone number"""
-    event = {
-        "Details": {
-            "Parameters": {"buttonpressed": connect.KEY_CHECK_IN},
-            "ContactData": {"CustomerEndpoint": {}}  # No Address field
-        }
-    }
-
-    result = connect.lambda_handler(event, None)
-
-    assert not result["success"]
-    assert "Unable to find your phone number" in result["message"]
-    mock_manager.increment_counter.assert_any_call(connect.METRIC_UNKNOWN_CALLER)
-    mock_manager.emit_metrics.assert_called_once()
-
 def test_lambda_handler_invalid_action(mock_manager):
     """Test lambda handler with invalid action"""
     event = {
@@ -131,3 +115,164 @@ def test_lambda_handler_malformed_event():
 
     with pytest.raises(KeyError):
         connect.lambda_handler(event, None)
+
+
+def _unknown_caller_call_count(mock_manager):
+    """Count how many times increment_counter was called with METRIC_UNKNOWN_CALLER,
+    since assert_any_call cannot distinguish one call from a double increment."""
+    return sum(
+        1 for call in mock_manager.increment_counter.call_args_list
+        if call.args and call.args[0] == connect.METRIC_UNKNOWN_CALLER
+    )
+
+
+def _withheld_event(action, address="anonymous"):
+    return {
+        "Details": {
+            "Parameters": {"buttonpressed": action},
+            "ContactData": {"CustomerEndpoint": {"Address": address}}
+        }
+    }
+
+
+def test_lambda_handler_withheld_checkin(mock_manager):
+    """A withheld caller ID on check-in gets the withheld-specific message, makes
+    no Graph lookup, and increments UnknownCaller exactly once."""
+    event = _withheld_event(connect.KEY_CHECK_IN)
+
+    result = connect.lambda_handler(event, None)
+
+    assert not result["success"]
+    assert result["message"] == (
+        "An error occurred. Your caller ID was withheld, so we cannot identify you. Please phone the office."
+    )
+    assert result["calling number"] == "WITHHELD"
+    mock_manager.phone_to_email.assert_not_called()
+    assert _unknown_caller_call_count(mock_manager) == 1
+
+
+def test_lambda_handler_withheld_checkout(mock_manager):
+    """Same as check-in, for check-out."""
+    event = _withheld_event(connect.KEY_CHECK_OUT)
+
+    result = connect.lambda_handler(event, None)
+
+    assert not result["success"]
+    assert result["message"] == (
+        "An error occurred. Your caller ID was withheld, so we cannot identify you. Please phone the office."
+    )
+    assert result["calling number"] == "WITHHELD"
+    mock_manager.phone_to_email.assert_not_called()
+    assert _unknown_caller_call_count(mock_manager) == 1
+
+
+def test_lambda_handler_withheld_checkin_whitespace_and_case(mock_manager):
+    """Detection is case-insensitive and tolerant of surrounding whitespace."""
+    event = _withheld_event(connect.KEY_CHECK_IN, address="  ANONYMOUS  ")
+
+    result = connect.lambda_handler(event, None)
+
+    assert result["calling number"] == "WITHHELD"
+    assert result["message"] == (
+        "An error occurred. Your caller ID was withheld, so we cannot identify you. Please phone the office."
+    )
+    mock_manager.phone_to_email.assert_not_called()
+    assert _unknown_caller_call_count(mock_manager) == 1
+
+
+def test_lambda_handler_withheld_emergency(mock_manager):
+    """A withheld caller ID on an emergency call still sends the email, recording
+    the calling number as withheld and the caller name as UNKNOWN, and does not
+    touch UnknownCaller at all."""
+    event = _withheld_event(connect.KEY_EMERGENCY)
+
+    result = connect.lambda_handler(event, None)
+
+    assert result["success"]
+    assert result["calling number"] == "WITHHELD"
+    mock_manager.phone_to_email.assert_not_called()
+    mock_manager.send_email.assert_called_once()
+    _, _, content = mock_manager.send_email.call_args[0]
+    assert " Calling number      : WITHHELD" in content
+    assert " Caller name if known: UNKNOWN" in content
+    assert "anonymous" not in content
+    assert _unknown_caller_call_count(mock_manager) == 0
+
+
+def test_lambda_handler_missing_phone_increments_unknown_caller_once(mock_manager):
+    """No number present in the event at all must increment UnknownCaller exactly
+    once, not twice as the pre-fix code did (once when the number was found
+    absent, once again when check-in found no addresses).
+
+    This supersedes the older test_lambda_handler_missing_phone, which built
+    the same event but used assert_any_call and so could not tell one
+    increment from two."""
+    event = {
+        "Details": {
+            "Parameters": {"buttonpressed": connect.KEY_CHECK_IN},
+            "ContactData": {"CustomerEndpoint": {}}  # No Address field
+        }
+    }
+
+    result = connect.lambda_handler(event, None)
+
+    assert not result["success"]
+    assert "Phone number missing" in result["message"]
+    assert _unknown_caller_call_count(mock_manager) == 1
+
+
+def test_lambda_handler_missing_phone_emergency_no_nameerror(mock_manager):
+    """An emergency call with no number at all must not raise NameError (the
+    pre-fix code assigned `displayName` but read `display_name`), must still
+    send the emergency email, and must record the caller name as UNKNOWN."""
+    event = {
+        "Details": {
+            "Parameters": {"buttonpressed": connect.KEY_EMERGENCY},
+            "ContactData": {"CustomerEndpoint": {}}  # No Address field
+        }
+    }
+
+    result = connect.lambda_handler(event, None)
+
+    assert result["success"]
+    mock_manager.send_email.assert_called_once()
+    _, _, content = mock_manager.send_email.call_args[0]
+    assert " Caller name if known: UNKNOWN" in content
+    assert _unknown_caller_call_count(mock_manager) == 0
+
+def test_lambda_handler_emergency_sends_email_when_lookup_fails(mock_manager):
+    """A directory failure must not cost us an emergency notification. The
+    email goes out with the calling number and an unknown name, and only then
+    is the error allowed to surface."""
+    mock_manager.phone_to_email.side_effect = RuntimeError("Graph is down")
+    event = {
+        "Details": {
+            "Parameters": {"buttonpressed": connect.KEY_EMERGENCY},
+            "ContactData": {"CustomerEndpoint": {"Address": "+441234567890"}}
+        }
+    }
+
+    with pytest.raises(RuntimeError):
+        connect.lambda_handler(event, None)
+
+    mock_manager.send_email.assert_called_once()
+    _, _, content = mock_manager.send_email.call_args[0]
+    assert " Calling number      : +441234567890" in content
+    assert " Caller name if known: UNKNOWN" in content
+
+
+def test_lambda_handler_checkin_lookup_failure_sends_no_email(mock_manager):
+    """Only the emergency path has a notification worth rescuing. A check-in
+    lookup failure just propagates."""
+    mock_manager.phone_to_email.side_effect = RuntimeError("Graph is down")
+    event = {
+        "Details": {
+            "Parameters": {"buttonpressed": connect.KEY_CHECK_IN},
+            "ContactData": {"CustomerEndpoint": {"Address": "+441234567890"}}
+        }
+    }
+
+    with pytest.raises(RuntimeError):
+        connect.lambda_handler(event, None)
+
+    mock_manager.send_email.assert_not_called()

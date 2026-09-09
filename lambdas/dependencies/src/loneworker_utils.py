@@ -44,6 +44,19 @@ MISSED_CHECK_IN = "Missed-Check-In"
 MISSED_CHECK_OUT = "Missed-Check-Out"
 EMERGENCY = "Emergency"
 
+# Bounds on phone_to_email's fallback lookup. Graph caps $top at 999 for
+# /users, so this is one request covering the whole directory: no enterprise
+# we deal with has anywhere near this many staff. If the tenant turns out to
+# have more, the fallback raises rather than paging through them. The figure
+# is arbitrary, but paging is complexity we could not meaningfully test.
+PHONE_FALLBACK_MAX_USERS = 999
+
+# Timeout for the fallback's single request. This is the whole of the time
+# protection: ConnectFunction runs under an Amazon Connect invocation time
+# limit (8s for check-in/out, 5s for emergency), and one hung Graph call is
+# the only way this stage threatens it.
+PHONE_FALLBACK_REQUEST_TIMEOUT_SECONDS = 2
+
 class LoneWorkerManager:
     def __init__(self, app_type, metric_names=[]):
         """
@@ -314,28 +327,38 @@ class LoneWorkerManager:
         Maps a phone number to associated email addresses from contacts and users.
 
         Args:
-            number (str): Phone number to search for (supports international format)
+            number (str): The calling number to search for, in E.164 format (such
+            as "+447123123123")
 
         Returns:
             tuple: (addresses, display_name) where:
                 - addresses (list): List of email addresses associated with the phone number
-                - display_name (str): Display name of the first matching contact/user, or "UNKNOWN"
+                - display_name (str): Display name of the *last* matching entry
+                  encountered, each non-empty one overwriting the previous, or
+                  "UNKNOWN" if none had a non-empty displayName
 
-        The function:
-        - Searches both contacts and users directories
-        - Handles international number format (+44) conversion
-        - Returns all matching email addresses in lowercase
+        The lookup runs in two stages: an exact-match Graph query against
+        contacts and users, then if that did not match a tolerant local comparison
+        over the tenant's user accounts, to allow spaces etc. in user numbers.
+
+        See "Phone number lookup" in lambdas/dependencies/README.md for the
+        two stages and why they are shaped this way; _phone_to_email_fallback
+        carries the details of stage two.
+
+        Raises:
+            RuntimeError: if any Graph request returns a non-200 result.
         """
         logger.info("Looking for phone number %s", number)
 
         addresses = []
         display_name = "UNKNOWN"
-
         clauses = [f"mobilePhone eq '{number}'"]
 
-        prefix = "+44"
-        if number.startswith(prefix):
-            alt_number = "0" + number[len(prefix):]
+        # Derived from the same helper normalise_phone_number uses, so the
+        # exact-match query and the tolerant fallback cannot drift apart over
+        # what counts as the same number.
+        alt_number = national_form(number)
+        if alt_number:
             logger.info("Also checking for number %s", alt_number)
             clauses.append(f"mobilePhone eq '{alt_number}'")
         filter = " or ".join(clauses)
@@ -377,12 +400,98 @@ class LoneWorkerManager:
         users = response.json()['value']
         logger.info("Got %d users", len(users))
         for user in users:
-            addresses.append(user['mail'].lower())
-            logger.info("User with phone %s has email address %s and name %s", number, addresses[-1], user['displayName'])
-            if user['displayName']:
+            mail = user.get('mail')
+            if not mail:
+                # Users should all have mail addresses, but if not ignore them.
+                logger.info("User with phone %s has no mail address; skipping", number)
+                continue
+            addresses.append(mail.lower())
+            logger.info("User with phone %s has email address %s and name %s", number, addresses[-1], user.get('displayName'))
+            if user.get('displayName'):
                 display_name = user['displayName']
 
-        logger.info("Full list of returned matching addresses: %s", addresses)
+        if addresses:
+            # We found a match - don't go through the fallback process.
+            logger.info("Full list of returned matching addresses: %s", addresses)
+            return addresses, display_name
+
+        # Look for the addresses using the fallback process, which permits
+        # spaces in phone numbers.
+        addresses, display_name = self._phone_to_email_fallback(number)
+
+        logger.info("Full list of returned matching addresses after fallback check: %s", addresses)
+        return addresses, display_name
+
+    def _phone_to_email_fallback(self, number):
+        """
+        Stage two of phone_to_email: a tolerant, local comparison over the
+        tenant's user accounts, run when stage one found nothing at all.
+
+        Args:
+            number (str): The calling number to match against.
+
+        Returns:
+            tuple: (addresses, display_name) - ([], "UNKNOWN") if nothing
+                matched, matching what stage one returns in the same situation.
+
+        Fetches the tenant's users in one request with no $filter, since Graph
+        has no string-manipulation function and so cannot express "ignore the
+        spacing" server-side - which is why this stage exists at all. It
+        therefore sends neither ConsistencyLevel nor $count, which stage one
+        needs only to $filter on mobilePhone.
+
+        Raises:
+            RuntimeError: if the request returns a non-200, or if the tenant
+                holds more users than one request returns. Request exceptions
+                (timeout, connection failure) propagate untouched.
+        """
+        logger.info("No exact match for %s; running tolerant user fallback", number)
+        target = normalise_phone_number(number)
+        if not target:
+            # Nothing could match.
+            logger.warning("Phone fallback skipped for %s: calling number has no canonical form", number)
+            return [], "UNKNOWN"
+
+        addresses = []
+        display_name = "UNKNOWN"
+        candidates_compared = 0
+        request_params = {'$select': 'displayName,mail,mobilePhone',
+                          '$top': PHONE_FALLBACK_MAX_USERS}
+
+        response = requests.get(self.users_url, headers=self.headers, params=request_params,
+                                timeout=PHONE_FALLBACK_REQUEST_TIMEOUT_SECONDS)
+
+        if response.status_code != 200:
+            logger.error('User fallback request failed: %d, message: %s', response.status_code, response.text)
+            raise RuntimeError(f"User fallback request failed: {response.status_code}, message: {response.text}")
+
+        body = response.json()
+        if body.get('@odata.nextLink'):
+            # More users than one request returns. This is not a Graph failure
+            # but it means the tolerant lookup silently becomes unreliable
+            # for this organisation organisation, so raise it.
+            logger.error("User fallback found more than %d users in the tenant", PHONE_FALLBACK_MAX_USERS)
+            raise RuntimeError(
+                f"User fallback found more than {PHONE_FALLBACK_MAX_USERS} users in the tenant; "
+                "tolerant phone number matching cannot be done for a directory this size")
+
+        for user in body.get('value', []):
+            mail = user.get('mail')
+            if not mail:
+                # No mailbox, so nothing to return even on a match. Not counted
+                # as "compared" below, since no comparison is made.
+                continue
+            candidates_compared += 1
+            candidate = normalise_phone_number(user.get('mobilePhone'))
+            if candidate and candidate == target:
+                addresses.append(mail.lower())
+                logger.info("Fallback match: phone %s has email address %s and name %s",
+                            number, addresses[-1], user.get('displayName'))
+                if user.get('displayName'):
+                    display_name = user['displayName']
+
+        logger.info("Phone fallback for %s compared %d candidate user(s)", number, candidates_compared)
+
         return addresses, display_name
 
     def init_metrics(self, metric_names):
@@ -590,3 +699,57 @@ def event_matches_time_filters(event, time_filters, now):
                 return False
 
     return True
+
+def normalise_phone_number(number):
+    """
+    Reduces a phone number to a canonical form so two numbers can be compared
+    for equality regardless of formatting.
+
+    Args:
+        number (str): The number to canonicalise, e.g. as stored in a
+            directory entry's mobilePhone field.
+
+    Returns:
+        str or None: The canonical form, or None if number is not a string
+            (including None itself).
+
+    Removes every space (U+0020), hyphen-minus (U+002D) and non-breaking
+    space (U+00A0) wherever they occur, and trims surrounding whitespace
+    generally. If the result then begins "+44", that prefix is replaced with
+    "0", giving the national form - so the international and national forms
+    of the same number canonicalise identically.
+
+    Brackets are deliberately not removed: "+44 (0)7123 123456" canonicalises
+    to "0(0)7123123456", which does not match "07123123456". Supporting that
+    idiom would need a rule that also drops the redundant "0", which is more
+    than character tolerance and out of scope (see the feature spec).
+
+    Two numbers match when their canonical forms are equal and non-empty.
+    """
+    if not isinstance(number, str):
+        return None
+
+    result = number.strip()
+    for char in (' ', '-', '\u00a0'):
+        result = result.replace(char, '')
+
+    # national_form returns None when there is no "+44" prefix to convert,
+    # which to its other caller means "no alternative form to query". Here it
+    # just means the number is already in its canonical shape.
+    return national_form(result) or result
+
+
+def national_form(number):
+    """
+    Converts a UK number in "+44" international form to its "0" national form,
+    returning None for anything else (including a non-string).
+
+    Shared by phone_to_email's exact-match Graph query and by
+    normalise_phone_number, so the fast path and the tolerant fallback cannot
+    drift apart over what counts as the same number - a disagreement only
+    callers who fell through to the fallback would ever see.
+    """
+    prefix = "+44"
+    if isinstance(number, str) and number.startswith(prefix):
+        return "0" + number[len(prefix):]
+    return None

@@ -19,6 +19,8 @@ The key flows are as follows.
 
     - The AWS Connect instance triggers a call to an AWS Lambda, the Connect Function (see [Connect Function README](../lambdas/ConnectFunction/README.md)).
 
+    - The Connect Function identifies the caller by matching the number they are calling from against the `mobilePhone` field on M365 contacts and user accounts (see [phone number lookup](../lambdas/dependencies/README.md#phone-number-lookup)).
+
     - The Connect Function updates calendar appointments.
 
     - Where the emergency option is selected by the user, the Connect Function triggers emergency mails using the shared mailbox email.

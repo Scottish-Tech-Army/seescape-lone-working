@@ -232,5 +232,296 @@ class TestGetCalendarEvents(unittest.TestCase):
                 loneworker_utils.LoneWorkerManager.get_calendar_events(mgr, [])
 
 
+class TestNormalisePhoneNumber(unittest.TestCase):
+    def test_null_input_returns_none(self):
+        self.assertIsNone(loneworker_utils.normalise_phone_number(None))
+
+    def test_non_string_input_returns_none(self):
+        self.assertIsNone(loneworker_utils.normalise_phone_number(447123123456))
+
+    def test_national_form_unchanged(self):
+        self.assertEqual(loneworker_utils.normalise_phone_number("07123123456"), "07123123456")
+
+    def test_international_form_converted_to_national(self):
+        self.assertEqual(loneworker_utils.normalise_phone_number("+447123123456"), "07123123456")
+
+    def test_spaced_national_form(self):
+        self.assertEqual(loneworker_utils.normalise_phone_number("07123 123456"), "07123123456")
+
+    def test_spaced_international_form(self):
+        self.assertEqual(loneworker_utils.normalise_phone_number("+44 7123 123456"), "07123123456")
+
+    def test_hyphenated_national_form(self):
+        self.assertEqual(loneworker_utils.normalise_phone_number("07123-123456"), "07123123456")
+
+    def test_hyphenated_international_form(self):
+        self.assertEqual(loneworker_utils.normalise_phone_number("+44-7123-123456"), "07123123456")
+
+    def test_non_breaking_space_is_removed(self):
+        self.assertEqual(loneworker_utils.normalise_phone_number("07123\u00a0123456"), "07123123456")
+
+    def test_non_breaking_space_in_international_form(self):
+        self.assertEqual(loneworker_utils.normalise_phone_number("+44\u00a07123\u00a0123456"), "07123123456")
+
+    def test_leading_and_trailing_whitespace_trimmed(self):
+        self.assertEqual(loneworker_utils.normalise_phone_number("  07123 123456  "), "07123123456")
+        self.assertEqual(loneworker_utils.normalise_phone_number("\t+44 7123 123456\n"), "07123123456")
+
+    def test_mixed_tolerated_characters(self):
+        # Space, hyphen and non-breaking space combined in one value.
+        self.assertEqual(loneworker_utils.normalise_phone_number(" +44-7123 123456 "), "07123123456")
+
+    def test_bracketed_zero_idiom_not_tolerated(self):
+        # Brackets are not stripped, so this deliberately does not reduce to
+        # the same canonical form as "07123123456" - see the module docstring.
+        self.assertEqual(loneworker_utils.normalise_phone_number("+44 (0)7123 123456"), "0(0)7123123456")
+        self.assertNotEqual(
+            loneworker_utils.normalise_phone_number("+44 (0)7123 123456"),
+            loneworker_utils.normalise_phone_number("07123123456"))
+
+    def test_prefix_sharing_number_does_not_match(self):
+        self.assertNotEqual(
+            loneworker_utils.normalise_phone_number("07123123457"),
+            loneworker_utils.normalise_phone_number("07123123456"))
+
+    def test_empty_string_returns_empty_string(self):
+        # Not None - the "non-empty" half of the matching rule is the
+        # caller's responsibility, per the function's docstring.
+        self.assertEqual(loneworker_utils.normalise_phone_number(""), "")
+
+    def test_equivalent_forms_canonicalise_identically(self):
+        forms = [
+            "+447123123456",
+            "07123123456",
+            "07123 123456",
+            "+44 7123 123456",
+            "07123-123456",
+            "  07123 123456  ",
+            "07123\u00a0123456",
+        ]
+        canonical = {loneworker_utils.normalise_phone_number(f) for f in forms}
+        self.assertEqual(canonical, {"07123123456"})
+
+
+def _make_phone_manager():
+    """Build a LoneWorkerManager with only the attributes phone_to_email needs.
+
+    Skipping __init__ avoids the AWS SSM and Graph token round-trips that
+    construction normally performs (see _make_manager above).
+    """
+    mgr = loneworker_utils.LoneWorkerManager.__new__(loneworker_utils.LoneWorkerManager)
+    mgr.contacts_url = "https://graph.microsoft.com/v1.0/users/x/contacts"
+    mgr.users_url = "https://graph.microsoft.com/v1.0/users"
+    mgr.headers = {"Authorization": "Bearer test"}
+    return mgr
+
+
+def _contact(email, name="Contact Name"):
+    """Build a Graph contact record as phone_to_email's stage one expects it."""
+    return {"displayName": name, "emailAddresses": [{"address": email}]}
+
+
+def _user(mail, name="User Name", mobile_phone=None):
+    """Build a Graph user record, for either stage one's exact-match response
+    or stage two's fallback fetch (`mail` may be None to exercise the
+    no-mailbox skip)."""
+    return {"displayName": name, "mail": mail, "mobilePhone": mobile_phone}
+
+
+class TestPhoneToEmail(unittest.TestCase):
+    """Tests for LoneWorkerManager.phone_to_email's two-stage lookup (design D1/D3).
+
+    Every case mocks `requests.get` directly with a fixed sequence of
+    responses: stage one always issues a contacts request then a users
+    request (in that order, matching the existing code), and any further
+    calls are stage two's fallback fetch.
+    """
+    NUMBER = "+447123123456"
+
+    def _call(self, mgr, responses, number=None):
+        with patch("loneworker_utils.requests.get") as mock_get:
+            mock_get.side_effect = responses
+            result = loneworker_utils.LoneWorkerManager.phone_to_email(mgr, number or self.NUMBER)
+        return result, mock_get
+
+    def test_stage_two_skipped_when_stage_one_matches_user(self):
+        mgr = _make_phone_manager()
+        responses = [
+            _ok_response([]),  # contacts: no match
+            _ok_response([_user("user@example.com", "User One", self.NUMBER)]),  # users: exact match
+        ]
+        (addresses, display_name), mock_get = self._call(mgr, responses)
+
+        self.assertEqual(addresses, ["user@example.com"])
+        self.assertEqual(display_name, "User One")
+        # No third call - stage two must not run when a user account matched.
+        self.assertEqual(mock_get.call_count, 2)
+
+    def test_stage_two_skipped_when_stage_one_matches_only_contact(self):
+        """A contact against the shared mailbox is taken to have been set up
+        deliberately for this worker, so an exact contact match ends the
+        lookup - there is nothing further to look for."""
+        mgr = _make_phone_manager()
+        responses = [
+            _ok_response([_contact("contact@example.com", "Contact One")]),  # contacts: match
+            _ok_response([]),  # users exact-match: no match
+        ]
+        (addresses, display_name), mock_get = self._call(mgr, responses)
+
+        self.assertEqual(addresses, ["contact@example.com"])
+        self.assertEqual(display_name, "Contact One")
+        self.assertEqual(mock_get.call_count, 2)  # no fallback
+
+    def test_fallback_query_shape(self):
+        """The fallback fetches users with no server-side filter, so it must
+        not send the advanced-query options stage one needs to $filter on
+        mobilePhone."""
+        mgr = _make_phone_manager()
+        responses = [
+            _ok_response([]),
+            _ok_response([]),
+            _ok_response([_user("fallback@example.com", "Fallback User", "07123 123456")]),
+        ]
+        (addresses, display_name), mock_get = self._call(mgr, responses)
+
+        self.assertEqual(addresses, ["fallback@example.com"])
+        self.assertEqual(display_name, "Fallback User")
+
+        fallback_call = mock_get.call_args_list[2]
+        self.assertEqual(fallback_call.args[0], mgr.users_url)
+        self.assertNotIn("ConsistencyLevel", fallback_call.kwargs["headers"])
+        self.assertNotIn("$count", fallback_call.kwargs["params"])
+        self.assertEqual(fallback_call.kwargs["params"]["$top"],
+                         loneworker_utils.PHONE_FALLBACK_MAX_USERS)
+        self.assertIn("mobilePhone", fallback_call.kwargs["params"]["$select"])
+
+    def test_stage_two_makes_no_contacts_request(self):
+        mgr = _make_phone_manager()
+        responses = [
+            _ok_response([]),
+            _ok_response([]),
+            _ok_response([_user("fallback@example.com", "Fallback User", "07123-123456")]),
+        ]
+        (addresses, _), mock_get = self._call(mgr, responses)
+
+        contacts_calls = [c for c in mock_get.call_args_list if c.args[0] == mgr.contacts_url]
+        self.assertEqual(len(contacts_calls), 1)
+        self.assertEqual(addresses, ["fallback@example.com"])
+
+    def test_fallback_raises_when_tenant_too_large(self):
+        """One request covers up to PHONE_FALLBACK_MAX_USERS. More than that
+        means tolerant matching has silently stopped working for this
+        organisation, so raise - a warning would never be noticed."""
+        mgr = _make_phone_manager()
+        responses = [
+            _ok_response([]),
+            _ok_response([]),
+            _ok_response([_user("someone@example.com", "Someone", self.NUMBER)],
+                         next_link="https://graph.microsoft.com/v1.0/users-next-page"),
+        ]
+        with self.assertRaises(RuntimeError):
+            self._call(mgr, responses)
+
+    def test_stage_two_skips_users_with_null_mail(self):
+        mgr = _make_phone_manager()
+        responses = [
+            _ok_response([]),
+            _ok_response([]),
+            _ok_response([
+                _user(None, "No Mailbox", self.NUMBER),
+                _user("real@example.com", "Real User", self.NUMBER),
+            ]),
+        ]
+        (addresses, display_name), _ = self._call(mgr, responses)
+
+        # Must not raise on the null-mail entry, and must not include it.
+        self.assertEqual(addresses, ["real@example.com"])
+        self.assertEqual(display_name, "Real User")
+
+    def test_fallback_http_error_raises(self):
+        """A Graph failure in the fallback means the application has stopped
+        working for this organisation. Raise, so it surfaces as a Lambda error
+        and alarm, rather than logging a warning nobody will read."""
+        mgr = _make_phone_manager()
+        responses = [
+            _ok_response([]),
+            _ok_response([]),
+            MagicMock(status_code=500, text="boom"),
+        ]
+        with self.assertRaises(RuntimeError):
+            self._call(mgr, responses)
+
+    def test_stage_one_skips_exact_match_user_with_no_mailbox(self):
+        """A user can match mobilePhone exactly yet have no mailbox (a disabled
+        account, say). Stage one must skip it rather than dereference None,
+        which would raise AttributeError out of the handler and give the caller
+        a Connect flow error instead of a spoken message."""
+        mgr = _make_phone_manager()
+        responses = [
+            _ok_response([]),                                        # contacts: none
+            _ok_response([_user(None, "No Mailbox", self.NUMBER)]),  # users: matched, but no mail
+            _ok_response([]),                                        # stage two: nothing
+        ]
+        (addresses, display_name), mock_get = self._call(mgr, responses)
+
+        self.assertEqual(addresses, [])
+        self.assertEqual(display_name, "UNKNOWN")
+        # The mail-less entry contributed no address, so stage one found
+        # nothing and the fallback still runs - hence the third request.
+        self.assertEqual(mock_get.call_count, 3)
+
+    def test_fallback_request_exception_propagates(self):
+        """A timeout or connection error is a failure too, and is left to
+        propagate rather than being caught and hidden."""
+        mgr = _make_phone_manager()
+        responses = [
+            _ok_response([]),
+            _ok_response([]),
+            loneworker_utils.requests.exceptions.Timeout("timed out"),
+        ]
+        with self.assertRaises(loneworker_utils.requests.exceptions.Timeout):
+            self._call(mgr, responses)
+
+    def test_stage_two_skipped_when_number_has_no_canonical_form(self):
+        """An unmatchable calling number must not buy a tenant-wide scan."""
+        mgr = _make_phone_manager()
+        responses = [_ok_response([]), _ok_response([])]
+        (addresses, display_name), mock_get = self._call(mgr, responses, number="  ")
+
+        self.assertEqual(addresses, [])
+        self.assertEqual(mock_get.call_count, 2)  # stage one only
+
+    def test_fallback_request_sets_a_timeout(self):
+        """One hung Graph call is the only realistic way this stage threatens
+        the Connect invocation time limit, so the per-request timeout is the
+        whole of the time protection."""
+        mgr = _make_phone_manager()
+        responses = [_ok_response([]), _ok_response([]), _ok_response([])]
+        _, mock_get = self._call(mgr, responses)
+
+        fallback_call = mock_get.call_args_list[2]
+        self.assertEqual(fallback_call.kwargs.get("timeout"),
+                         loneworker_utils.PHONE_FALLBACK_REQUEST_TIMEOUT_SECONDS)
+
+
+class TestNationalForm(unittest.TestCase):
+    """national_form answers "is there an alternative form to look for?", so it
+    returns None when there is not. Shared by stage one's exact-match query and
+    by normalise_phone_number, so the fast path and the fallback cannot drift
+    apart over what counts as the same number."""
+
+    def test_international_converted(self):
+        self.assertEqual(loneworker_utils.national_form("+447123123456"), "07123123456")
+
+    def test_national_has_no_alternative(self):
+        self.assertIsNone(loneworker_utils.national_form("07123123456"))
+
+    def test_non_uk_has_no_alternative(self):
+        self.assertIsNone(loneworker_utils.national_form("+33123456789"))
+
+    def test_non_string_has_no_alternative(self):
+        self.assertIsNone(loneworker_utils.national_form(None))
+
+
 if __name__ == '__main__':
     unittest.main()

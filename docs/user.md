@@ -42,7 +42,11 @@ Once you have set up a lone worker's mobile number, you should have them test it
 
 - Have the user call the application number and press "1".
 
-- If they hear a message saying that no meeting was found, then all is well. If they hear a message saying that the number was not recognised, then things have gone wrong, and the number was not entered correctly.
+- If they hear a message saying that no meeting was found, then all is well.
+
+- If they hear a message saying that the number was not recognised, then things have gone wrong, and the number was not entered correctly. Ask your M365 administrator to re-check it against [Configure mobile phone numbers](m365.md#configure-mobile-phone-numbers).
+
+- If instead they hear a message saying that their caller ID was withheld, then their mobile is configured to withhold caller ID, and they should reconfigure it.
 
 ### Accessing the shared mailbox calendar
 
@@ -125,5 +129,7 @@ You must check in within 15 minutes of the start of the meeting, and check out a
     - "2" to check out of a meeting (which must end within 15 minutes of the current time).
 
     - "3" in case of emergency, where you wish the office staff to call the police or otherwise react. You will hear a message saying that all operators are busy; this is in case the call is overheard.
+
+- Your phone must not withhold its caller ID, since the application identifies you by the number you are calling from. If you hear a message saying that your caller ID was withheld, turn off number withholding on your handset, or dial without a withholding prefix, and try again.
 
 - If you are unable to check in or out, or cannot attend a meeting, inform the office staff. They can cancel or delete the meeting, and they can also manually check single-instance meetings in or out; see [Recurring meetings](#recurring-meetings) for what office staff can do for recurring series.
