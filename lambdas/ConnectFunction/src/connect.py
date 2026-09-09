@@ -17,6 +17,19 @@ METRIC_DUPLICATE_CALL = "DuplicateCall"
 METRIC_SUCCESS = "Success"
 METRIC_MEETINGS_COMPLETED_OK = "MeetingsCompletedOK"
 
+# How the calling number was resolved.
+CALLER_WITHHELD = "withheld"
+CALLER_NO_NUMBER = "no_number"
+CALLER_LOOKED_UP = "looked_up"
+
+# The value Amazon Connect supplies in place of a number when the caller has
+# withheld their caller ID. PHONE_WITHHELD replaces it for display.
+CALLER_ID_ANONYMOUS = "anonymous"
+
+# Display names for numbers and names that are unknown or withheld.
+PHONE_WITHHELD = "WITHHELD"
+PHONE_UNKNOWN = "UNKNOWN"
+
 ALL_METRICS = [
     METRIC_CHECKINS,
     METRIC_CHECKOUTS,
@@ -364,6 +377,29 @@ def process_appointments(manager, addresses, action):
 
     return success, message
 
+def send_emergency_email(manager, phone_number, display_name):
+    """
+    Sends the emergency notification email.
+
+    Args:
+        manager (LoneWorkerManager): Manager instance for handling API calls
+        phone_number (str): Calling number, or a marker such as WITHHELD/UNKNOWN
+        display_name (str): Caller's name if known, otherwise UNKNOWN
+
+    Factored out so that it can also be sent when the directory lookup has
+    failed. Getting the notification out matters more than knowing who sent
+    it, so an emergency call must not go unreported just because Graph was
+    unavailable.
+    """
+    subject = "Emergency Assistance Required!"
+    lines = []
+    lines.append("Emergency call received")
+    lines.append("")
+    lines.append(f" Calling number      : {phone_number}")
+    lines.append(f" Caller name if known: {display_name}")
+    content = "\r\n".join(lines)
+    manager.send_email("emergency", subject, content)
+
 def lambda_handler(event, context):
     """
     AWS Lambda handler for processing Connect phone system events.
@@ -420,17 +456,39 @@ def lambda_handler(event, context):
         logger.error("Phone number not found")
         phone_number = None
 
-    if phone_number:
-        logger.info("Get values for phone number %s", phone_number)
-        addresses, display_name = manager.phone_to_email(phone_number)
-        # phone_found is used purely to give a better error message
-        phone_found = True
-    else:
-        phone_number = "UNKNOWN"
+    # Check the calling number.
+    if isinstance(phone_number, str) and phone_number.strip().lower() == CALLER_ID_ANONYMOUS:
+        # Explicitly anonymous caller - caller ID withheld
+        logger.info("Caller ID withheld")
+        caller_state = CALLER_WITHHELD
         addresses = []
-        displayName = "UNKNOWN"
-        manager.increment_counter(METRIC_UNKNOWN_CALLER)
-        phone_found = False
+        display_name = PHONE_UNKNOWN
+        # Never let the literal "anonymous" string reach the result map or the
+        # emergency email - replace it with an explicit marker now.
+        phone_number = PHONE_WITHHELD
+    elif phone_number:
+        # Normal phone number; look up the number and the user's name
+        logger.info("Get values for phone number %s", phone_number)
+        caller_state = CALLER_LOOKED_UP
+        try:
+            addresses, display_name = manager.phone_to_email(phone_number)
+        except Exception:
+            # A failed lookup is a real fault and must surface - but not at the
+            # cost of an emergency going unreported. We already know the
+            # calling number; the name is precisely what we failed to look up.
+            # Send the notification, then let the error out.
+            if action == KEY_EMERGENCY:
+                logger.error("Lookup failed on an emergency call from %s; "
+                             "sending the email before reporting the failure", phone_number)
+                send_emergency_email(manager, phone_number, PHONE_UNKNOWN)
+            raise
+    else:
+        # No phone number at all; this should not normally happen. Either Connect
+        # failed to fill it in, or this is a test lambda invocation that did not set it.
+        caller_state = CALLER_NO_NUMBER
+        phone_number = PHONE_UNKNOWN
+        addresses = []
+        display_name = PHONE_UNKNOWN
 
     resultMap["calling number"] = phone_number
     message = ""
@@ -443,21 +501,16 @@ def lambda_handler(event, context):
                 manager.increment_counter(METRIC_SUCCESS)
         else:
             logger.info("Giving up - no phone number or no matching addresses")
-            if phone_found:
-                message = "Unrecognised phone number."
+            if caller_state == CALLER_WITHHELD:
+                message = "Your caller ID was withheld, so we cannot identify you."
+            elif caller_state == CALLER_NO_NUMBER:
+                message = "Phone number missing."
             else:
-                message = "Unable to find your phone number."
+                message = "Unrecognised phone number."
             manager.increment_counter(METRIC_UNKNOWN_CALLER)
     else:
         logger.info("Emergency action selected")
-        subject = "Emergency Assistance Required!"
-        lines = []
-        lines.append("Emergency call received")
-        lines.append("")
-        lines.append(f" Calling number      : {phone_number}")
-        lines.append(f" Caller name if known: {display_name}")
-        content = "\r\n".join(lines)
-        manager.send_email("emergency", subject, content)
+        send_emergency_email(manager, phone_number, display_name)
         message = "Emergency email sent." # This is not actually read out, so is just for diags purposes.
 
         if addresses:

@@ -26,6 +26,18 @@ To subscribe an email address:
 
 To remove a subscriber, find the subscription in the same topic and delete it.
 
+### What a Connect Function error alarm means
+
+The alarm tells you an invocation failed; the CloudWatch logs for that invocation carry the specific error. Some causes include the following:
+
+- **The M365 client secret has expired.** The application has stopped working entirely. See [Client secret rotation](#client-secret-rotation) below. The client-secret expiry alarms should warn you before this happens.
+
+- **Microsoft Graph was unavailable, slow, or throttled the request** while looking up who was calling. If this clears by itself and is rare, no action is needed beyond noting it; if it repeats, check the Microsoft 365 service health dashboard.
+
+- **The organisation has more user accounts than a single Graph request returns.** This is expected never to happen, but is guarded against - see the phone number lookup section of the [dependencies layer README](../lambdas/dependencies/README.md#phone-number-lookup).
+
+A Check Function error alarm can be caused by either of the first two causes, but not the third.
+
 ## Client secret rotation
 
 The M365 client secret has a finite lifetime (the Entra default is three months, and the value must be no more than one year). When the secret expires, every Lambda call to Microsoft Graph fails and the application stops working. This section covers how to rotate the secret before that happens.

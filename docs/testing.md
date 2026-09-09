@@ -8,7 +8,7 @@ This document describes testing that can be done. It covers the following.
 
 3. [Per-Lambda validation](#validating-the-lambda-functions) in the AWS console.
 
-4. [The end-to-end test plan](#end-to-end-test-plan), including a dedicated subsection for [recurring meetings](#recurring-meetings).
+4. [The end-to-end test plan](#end-to-end-test-plan), including dedicated subsections for [recurring meetings](#recurring-meetings) and [miscellaneous cases](#miscellaneous).
 
 ## Unit tests
 
@@ -123,13 +123,15 @@ To get a good level of end to end testing, follow the test cases below. Unless o
 
 ### Tyre kicking
 
-- Call in to the number from an unrecognised number, and validate that you get a sensible message.
+- Call in to the number from an unrecognised number, and validate that you hear a message saying the number was not recognised (as distinct from the withheld-caller-ID message below).
 
 - Dial into the number and try to check in (`1` option). You should get a message saying that there is no matching meeting.
 
 - Dial into the number and try to check out (`2` option). You should get a message saying that there is no matching meeting.
 
 - Dial in and select the `3` (emergency) option. An email should be sent (even though there are no meetings).
+
+- Call in to the number with your caller ID withheld (in the UK, dial the application number prefixed with `141`), and validate that you hear a message telling you your caller ID was withheld.
 
 ### Mainline
 
@@ -278,3 +280,17 @@ This documents an Outlook-side behaviour that the tooling cannot prevent: editin
     - Re-inspect today's occurrence: the `Checked-In` and `Checked-Out` categories should have been wiped. This is expected Outlook behaviour, not a tooling bug.
 
     - Confirm that the tooling itself was not involved (no Connect/Check Lambda invocation in CloudWatch around the edit time). The category change came purely from Outlook's series-edit semantics.
+
+### Miscellaneous
+
+*The application tolerates a number that was typed with spaces or hyphens, as a safety net for entries made wrongly. This is not an approved way to enter numbers - the instruction in [the M365 setup guide](m365.md#configure-mobile-phone-numbers) remains the strict forms, and the test below deliberately misconfigures an entry to check the safety net works. Note that changing the number on a user account normally needs an M365 administrator, so arrange that before you start.*
+
+- Set your mobile number on your **M365 user account** with spaces in it, e.g. `07123 123456`, and validate that you can still check in normally. Set the number back to its normal form afterwards, so the tenant is not left misconfigured for the next tester.
+
+- Check that the same tolerance is *not* applied to shared-mailbox contacts, which is deliberate: a contact can be corrected by any member of staff, whereas a user account's number cannot. Note that this needs your own user account to stop matching first, or it will be found regardless of what the contact holds:
+
+    - Clear the `mobilePhone` on your M365 user account, and set the spaced number on a shared-mailbox contact instead.
+
+    - Call in and check in. You should hear the message saying the number was not recognised.
+
+    - Restore both the user account number and the contact afterwards.
