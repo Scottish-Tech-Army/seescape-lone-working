@@ -11,9 +11,11 @@ ALL_METRICS = [METRIC_MEETINGS_CHECKED, METRIC_CHECKINS_MISSED, METRIC_CHECKOUTS
                METRIC_CLIENT_SECRET_DAYS_TO_EXPIRY]
 
 # Sentinel days-to-expiry value reported when the SSM parameter is missing or
-# unparseable. Chosen to breach the > 366 alarm threshold without overflowing
-# any sensible chart range.
-INVALID_DAYS_TO_EXPIRY = 1000
+# unparseable. Chosen to be unmistakably invalid on the dashboard and well
+# above the invalid alarm threshold (five years; see
+# ClientSecretExpiryInvalidAlarm in templates/dashboard.yaml). A test asserts
+# that this sentinel stays above that threshold.
+INVALID_DAYS_TO_EXPIRY = 9999
 
 logger = utils.get_logger()
 
@@ -33,7 +35,7 @@ def days_to_expiry(expiry_str, today=None):
         once the secret is past its expiry the < 7 alarm is already firing
         and Microsoft Graph calls will start failing — surfacing the issue
         through the CheckFunctionErrorAlarm). Returns INVALID_DAYS_TO_EXPIRY
-        (1000) if the input is missing, not a string, or not a valid ISO date,
+        if the input is missing, not a string, or not a valid ISO date,
         which triggers the ClientSecretExpiryInvalidAlarm.
     """
     if today is None:

@@ -23,6 +23,6 @@ do
 done
 
 echo "  Removing built zip files"
-rm -f build/*
+rm -rf build/*
 
 echo "Done"

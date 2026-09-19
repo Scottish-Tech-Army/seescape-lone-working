@@ -12,8 +12,10 @@ sys.modules["boto3"] = dummy_boto3
 
 from datetime import date
 
+import yaml
 import pytest
 from check import send_warning_mail, days_to_expiry, INVALID_DAYS_TO_EXPIRY
+
 
 class DummyManager:
     def __init__(self):
@@ -53,6 +55,19 @@ def test_send_warning_mail_checkin():
 
 # ---- days_to_expiry ----
 
+@pytest.fixture(scope="module")
+def invalid_alarm_threshold():
+    """
+    ClientSecretExpiryInvalidAlarm's Threshold, read from templates/dashboard.yaml
+    so tests fail if the alarm threshold and INVALID_DAYS_TO_EXPIRY ever drift apart.
+    An error here means that alarm resource has been renamed or restructured.
+    """
+    template_path = os.path.join(os.path.dirname(__file__), "../../../templates/dashboard.yaml")
+    with open(template_path) as f:
+        template = yaml.safe_load(f)
+    return template["Resources"]["ClientSecretExpiryInvalidAlarm"]["Properties"]["Threshold"]
+
+
 # Fixed reference date so tests are deterministic and survive the calendar.
 TODAY = date(2026, 5, 6)
 
@@ -69,10 +84,23 @@ def test_days_to_expiry_expired():
     # start failing, so other alarms cover the "actually expired" case.
     assert days_to_expiry("2026-05-01", today=TODAY) == 0
 
-def test_days_to_expiry_far_future():
-    # Far-future placeholder — well above the 366-day invalid threshold
+def test_days_to_expiry_far_future(invalid_alarm_threshold):
+    # Far-future placeholder — well above the invalid alarm threshold
     days = days_to_expiry("9999-12-31", today=TODAY)
-    assert days > 366
+    assert days > invalid_alarm_threshold
+
+def test_days_to_expiry_five_years_ahead_is_valid(invalid_alarm_threshold):
+    # The invalid alarm threshold is exactly the longest possible five-year
+    # span (two leap days included), so a secret expiring five years ahead
+    # never breaches it.
+    days = days_to_expiry("2032-03-01", today=date(2027, 3, 1))
+    assert days == invalid_alarm_threshold
+
+def test_invalid_sentinel_exceeds_alarm_threshold(invalid_alarm_threshold):
+    # The sentinel must stay above the invalid alarm threshold, or a
+    # missing/unparseable expiry date would stop alarming without anyone
+    # noticing.
+    assert INVALID_DAYS_TO_EXPIRY > invalid_alarm_threshold
 
 def test_days_to_expiry_none():
     # Missing SSM parameter — surfaces as None

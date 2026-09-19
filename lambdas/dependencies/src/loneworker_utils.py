@@ -124,7 +124,7 @@ class LoneWorkerManager:
         mand_names = ["clientid", "emailuser", "tenant", "config", "clientsecret"]
         # clientsecretexpiry is optional so existing deployments continue to start
         # while the operator adds the new parameter; a missing value is handled the
-        # same way as an unparseable one (CheckFunction reports days=1000 → invalid alarm).
+        # same way as an unparseable one (CheckFunction reports days=9999 → invalid alarm).
         optional_names = ["clientsecretexpiry"]
         values = get_params(ssm, self.app_prefix, mand_names=mand_names, optional_names=optional_names)
 
