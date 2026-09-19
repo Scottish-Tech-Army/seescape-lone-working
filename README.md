@@ -2,6 +2,8 @@
 
 This project provides tooling to allow lone remote workers to call back and report for safety purposes.
 
+As this is now live, there are proper [releases to install](RELEASES.md).
+
 ## User experience and overview
 
 The issue is that charities who arrange home visits need to monitor their visiting staff's arrival and departure at appointments. Those visitors may not have smartphones, or have some disability which makes using a smartphone app tricky. Hence the model is that each visitor calls in when they arrive and leave appointments, and their status is reported to a Microsoft 365 calendar. Staff at the charity can view where and when visitors arrived and left, and are notified if a visitor is overdue.
