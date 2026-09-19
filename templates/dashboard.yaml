@@ -185,7 +185,7 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: Client Secret Expiry Invalid
-      AlarmDescription: "The M365 client secret expiry parameter is missing, unparseable, or set more than a year ahead. Set clientsecretexpiry to a real ISO 8601 date."
+      AlarmDescription: "The M365 client secret expiry parameter is missing, unparseable, or set more than five years ahead. Set clientsecretexpiry to a real ISO 8601 date."
       Namespace:
         Fn::Sub: "${app}/Check"
       MetricName: ClientSecretDaysToExpiry
@@ -193,7 +193,7 @@ Resources:
       Period: 900
       EvaluationPeriods: 1  # Single period — clears within ~25 minutes once the metric is good
       DatapointsToAlarm: 1
-      Threshold: 366
+      Threshold: 1827  # Five years including up to two leap days; must stay below INVALID_DAYS_TO_EXPIRY in check.py
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
       AlarmActions:

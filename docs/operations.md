@@ -40,7 +40,7 @@ A Check Function error alarm can be caused by either of the first two causes, bu
 
 ## Client secret rotation
 
-The M365 client secret has a finite lifetime (the Entra default is three months, and the value must be no more than one year). When the secret expires, every Lambda call to Microsoft Graph fails and the application stops working. This section covers how to rotate the secret before that happens.
+The M365 client secret has a finite lifetime. The Entra default is three months; the maximum depends on the tenant's policy and on this application's five-year limit (see [Credentials](m365.md#credentials)). When the secret expires, every Lambda call to Microsoft Graph fails and the application stops working. This section covers how to rotate the secret before that happens.
 
 ### When to rotate
 
@@ -48,7 +48,9 @@ You will be notified by email when one of three CloudWatch alarms fires:
 
 - `Client Secret Expiring Within Month` — fires roughly 30 days before the recorded expiry date. Plan a rotation in the next week or two.
 - `Client Secret Expiring Within Week` — fires 7 days before expiry, or on/after expiry. Rotate now.
-- `Client Secret Expiry Invalid` — fires when the recorded expiry date is missing, unparseable, or set more than a year ahead. This usually means the date in Parameter Store has not been set, or was entered in the wrong format. Set it to the real expiry date as shown in Entra (see "Update Parameter Store" below).
+- `Client Secret Expiry Invalid` — fires when the recorded expiry date is missing, unparseable, or set more than five years ahead. This usually means the date in Parameter Store has not been set, was entered in the wrong format, or has a mistyped year.
+
+To clear `Client Secret Expiry Invalid`, set the date to the real expiry date as shown in Entra (see "Update Parameter Store" below). If the real expiry date is more than five years ahead, the alarm cannot clear: create a new secret with a shorter lifetime, following [Credentials](m365.md#credentials).
 
 The dashboard also shows the current days-until-expiry as a single-value widget next to the routine operations panel. You can sanity-check at any time without waiting for an alarm.
 
