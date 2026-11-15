@@ -70,7 +70,7 @@ Follow the instructions for how to [set up credentials](m365.md#credentials) to 
 
 ### Verify
 
-- Wait up to 25 minutes for the alarms to clear: 10 minutes for the next CheckFunction run plus a single 15-minute CloudWatch alarm evaluation period. The dashboard widget reflects the metric within a few minutes; the alarm state takes one more period to flip. (The three client-secret alarms use a single evaluation period rather than the 12-hour window used by the legacy lambda/throttle alarms as they are reflecting current state rather than past errors.)
+- Wait up to 40 minutes for the alarms to clear: 10 minutes for the next CheckFunction run plus a single 30-minute CloudWatch alarm evaluation period. The dashboard widget reflects the metric within a few minutes; the alarm state takes one more period to flip. (The three client-secret alarms use a single evaluation period rather than the 12-hour window used by the legacy lambda/throttle alarms as they are reflecting current state rather than past errors.)
 
 - On the dashboard, confirm the "Days until expiry" widget reports a value consistent with the new expiry date.
 

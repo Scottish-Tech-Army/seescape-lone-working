@@ -156,8 +156,8 @@ Resources:
         Fn::Sub: "${app}/Check"
       MetricName: ClientSecretDaysToExpiry
       Statistic: Maximum  # Gauge value; one datapoint per CheckFunction run
-      Period: 900
-      EvaluationPeriods: 1  # Single period — clears within ~25 minutes once the metric is good
+      Period: 1800  # 30 minutes, so one failed CheckFunction run (10-minute schedule plus retry) cannot leave a period empty and spuriously clear the alarm
+      EvaluationPeriods: 1  # Single period — clears within ~40 minutes once the metric is good
       DatapointsToAlarm: 1
       Threshold: 30
       ComparisonOperator: LessThanThreshold
@@ -173,8 +173,8 @@ Resources:
         Fn::Sub: "${app}/Check"
       MetricName: ClientSecretDaysToExpiry
       Statistic: Maximum
-      Period: 900
-      EvaluationPeriods: 1  # Single period — clears within ~25 minutes once the metric is good
+      Period: 1800  # 30 minutes, so one failed CheckFunction run (10-minute schedule plus retry) cannot leave a period empty and spuriously clear the alarm
+      EvaluationPeriods: 1  # Single period — clears within ~40 minutes once the metric is good
       DatapointsToAlarm: 1
       Threshold: 7
       ComparisonOperator: LessThanThreshold
@@ -190,8 +190,8 @@ Resources:
         Fn::Sub: "${app}/Check"
       MetricName: ClientSecretDaysToExpiry
       Statistic: Maximum
-      Period: 900
-      EvaluationPeriods: 1  # Single period — clears within ~25 minutes once the metric is good
+      Period: 1800  # 30 minutes, so one failed CheckFunction run (10-minute schedule plus retry) cannot leave a period empty and spuriously clear the alarm
+      EvaluationPeriods: 1  # Single period — clears within ~40 minutes once the metric is good
       DatapointsToAlarm: 1
       Threshold: 1827  # Five years including up to two leap days; must stay below INVALID_DAYS_TO_EXPIRY in check.py
       ComparisonOperator: GreaterThanThreshold
